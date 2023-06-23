@@ -1,12 +1,15 @@
 package imagescanner
 
 import (
-	"sigs.k8s.io/kustomize/api/types"
+	"fmt"
+
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	"sigs.k8s.io/kustomize/api/filters/filtersutil"
 	"sigs.k8s.io/kustomize/api/filters/fsslice"
+
+	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
 type Filter struct {
@@ -33,19 +36,7 @@ func (f Filter) filter(node *yaml.RNode) (*yaml.RNode, error) {
 		return node, nil
 	}
 	if err := node.PipeE(fsslice.Filter{
-		FsSlice: []types.FieldSpec{
-			{Path: "spec/containers[]/image"},
-			{Path: "spec/initContainers[]/image"},
-			{Path: "spec/template/spec/containers[]/image"},
-			{Path: "spec/template/spec/initContainers[]/image"},
-			// kustomize can process flat lists, but not nested lists,
-			// these paths enable 1 level of nesting
-			// TODO: find a better way to address it for arbitrary depths
-			{Path: "items[]/spec/containers[]/image"},
-			{Path: "items[]/spec/initContainers[]/image"},
-			{Path: "items[]/spec/template/spec/containers[]/image"},
-			{Path: "items[]/spec/template/spec/initContainers[]/image"},
-		},
+		FsSlice:  types.ImagePaths(),
 		SetValue: f.SetValue,
 	}); err != nil {
 		return nil, err
@@ -91,6 +82,7 @@ type Tracker struct {
 }
 
 func (t *Tracker) MutationTracker(key, value, tag string, node *yaml.RNode) {
+	fmt.Printf("MutationTracker %#v\n", node.YNode())
 	t.setValueArgs = append(t.setValueArgs, SetValueArg{
 		Key:      key,
 		Value:    value,

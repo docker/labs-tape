@@ -1,6 +1,8 @@
 package imageresolver
 
 import (
+	"fmt"
+
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 
@@ -31,10 +33,10 @@ func (r *RegistryResolver) doResolveDigest(i *types.Image) error {
 	if err != nil {
 		return err
 	}
-	// if i.Digest != "" && i.Digest != digest {
-	// 	// this is unexpected as when digest is being specified, that is exactly what will be retrieved
-	// 	return fmt.Errorf("unexpected digest mismatch: %s (from manifest) != %s (form registry)", i.Digest, digest)
-	// }
+	if i.Digest != "" && i.Digest != digest {
+		// this is unexpected as when digest is being specified, that is exactly what will be retrieved
+		return fmt.Errorf("unexpected digest mismatch: %s (from manifest) != %s (form registry)", i.Digest, digest)
+	}
 	i.Digest = digest
 	return nil
 }
