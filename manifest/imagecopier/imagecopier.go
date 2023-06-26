@@ -31,10 +31,12 @@ func NewRegistryCopier(destinationRef string) ImageCopier {
 func (c *RegistryCopier) CopyImages(images []types.Image) error {
 	setNewImageRefs(c.DestinationRef, c.hash, images)
 	for _, image := range images {
-		if err := crane.Copy(image.OriginalRef, image.NewRef, crane.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+		newRef := image.NewName + ":" + image.NewTag
+		if err := crane.Copy(image.OriginalRef, newRef, crane.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 			return err
 		}
-		digest, err := crane.Digest(image.NewRef, crane.WithAuthFromKeychain(authn.DefaultKeychain))
+		fmt.Println("Copied", image.OriginalRef, "to", newRef)
+		digest, err := crane.Digest(newRef, crane.WithAuthFromKeychain(authn.DefaultKeychain))
 		if err != nil {
 			return err
 		}
@@ -52,11 +54,9 @@ func setNewImageRefs(destinationRef string, hash hash.Hash, images []types.Image
 }
 
 func doSetNewImageRef(destinationRef string, hash hash.Hash, i *types.Image) {
+	i.NewName = destinationRef
+
 	hash.Reset()
 	hash.Write([]byte(i.OriginalName + ":" + i.OriginalTag))
 	i.NewTag = hex.EncodeToString(hash.Sum(nil))
-
-	i.NewName = destinationRef
-
-	i.NewRef = i.NewName + ":" + i.NewTag + "@" + i.Digest
 }

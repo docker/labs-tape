@@ -27,11 +27,6 @@ func (u *Updater) Update(images []types.Image) error {
 }
 
 func (u *Updater) doUpdate(i *types.Image) error {
-	manifest, err := os.Open(i.Manifest)
-	if err != nil {
-		return err
-	}
-
 	filter := imagetag.Filter{
 		ImageTag: kustomize.Image{
 			Name:    i.OriginalName,
@@ -44,11 +39,16 @@ func (u *Updater) doUpdate(i *types.Image) error {
 
 	pipeline := kio.Pipeline{
 		Inputs: []kio.Reader{
-			&kio.ByteReader{Reader: manifest},
+			kio.LocalPackageReader{
+				PackagePath: i.Manifest,
+			},
 		},
 		Filters: []kio.Filter{filter},
 		Outputs: []kio.Writer{
 			&kio.ByteWriter{Writer: os.Stdout},
+			// kio.LocalPackageWriter{
+			// 	PackagePath: i.Manifest,
+			// },
 		},
 	}
 

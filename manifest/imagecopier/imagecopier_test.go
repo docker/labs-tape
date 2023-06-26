@@ -1,16 +1,24 @@
-package imageresolver_test
+package imagecopier_test
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
 
-	. "github.com/docker/labs-brown-tape/manifest/imageresolver"
+	. "github.com/docker/labs-brown-tape/manifest/imagecopier"
+	"github.com/docker/labs-brown-tape/manifest/imageresolver"
 	"github.com/docker/labs-brown-tape/manifest/imagescanner"
+
 	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
-type imageResolverTestCase struct {
+func newDestination(name string) string {
+	return fmt.Sprintf("ttl.sh/%s/bpt-imagecopier-test-%s", uuid.New().String(), name)
+}
+
+type imageCopierTestCase struct {
 	description string
 	manifests   []string
 	expected    []types.Image
@@ -18,7 +26,7 @@ type imageResolverTestCase struct {
 
 func TestImageResover(t *testing.T) {
 
-	cases := []imageResolverTestCase{
+	cases := []imageCopierTestCase{
 		{
 			description: "contour",
 			manifests: []string{
@@ -145,11 +153,11 @@ func TestImageResover(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.description, makeImageResolverTest(tc))
+		t.Run(tc.description, makeImageCopierTest(tc))
 	}
 }
 
-func makeImageResolverTest(i imageResolverTestCase) func(t *testing.T) {
+func makeImageCopierTest(i imageCopierTestCase) func(t *testing.T) {
 	return func(t *testing.T) {
 		g := NewWithT(t)
 		t.Parallel()
@@ -161,12 +169,14 @@ func makeImageResolverTest(i imageResolverTestCase) func(t *testing.T) {
 		images := scanner.GetImages()
 
 		// TODO: should this use fake resolver to avoid network traffic?
-		g.Expect(NewRegistryResolver().ResolveDigests(images)).To(Succeed())
+		g.Expect(imageresolver.NewRegistryResolver().ResolveDigests(images)).To(Succeed())
 
 		if i.expected != nil {
 			g.Expect(images).To(Equal(i.expected))
 		} else {
 			t.Logf("%#v\n", images)
 		}
+
+		g.Expect(NewRegistryCopier(newDestination(i.description)).CopyImages(images)).To(Succeed())
 	}
 }

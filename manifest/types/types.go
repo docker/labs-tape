@@ -16,7 +16,6 @@ type Image struct {
 
 	Digest string
 
-	NewRef  string
 	NewName string
 	NewTag  string
 }
