@@ -54,7 +54,9 @@ func setNewImageRefs(destinationRef string, hash hash.Hash, images []types.Image
 func doSetNewImageRef(destinationRef string, hash hash.Hash, i *types.Image) {
 	hash.Reset()
 	hash.Write([]byte(i.OriginalName + ":" + i.OriginalTag))
-	tag := hex.EncodeToString(hash.Sum(nil))
+	i.NewTag = hex.EncodeToString(hash.Sum(nil))
 
-	i.NewRef = destinationRef + ":" + tag + "@" + i.Digest
+	i.NewName = destinationRef
+
+	i.NewRef = i.NewName + ":" + i.NewTag + "@" + i.Digest
 }

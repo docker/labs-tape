@@ -1,7 +1,7 @@
 package types
 
 import (
-	"sigs.k8s.io/kustomize/api/types"
+	kustomize "sigs.k8s.io/kustomize/api/types"
 )
 
 type Image struct {
@@ -15,11 +15,14 @@ type Image struct {
 	OriginalTag  string
 
 	Digest string
-	NewRef string
+
+	NewRef  string
+	NewName string
+	NewTag  string
 }
 
-func ImagePaths() []types.FieldSpec {
-	return []types.FieldSpec{
+func ImagePaths() []kustomize.FieldSpec {
+	return []kustomize.FieldSpec{
 		{Path: "spec/containers[]/image"},
 		{Path: "spec/initContainers[]/image"},
 		{Path: "spec/template/spec/containers[]/image"},
