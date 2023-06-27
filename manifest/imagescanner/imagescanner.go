@@ -2,6 +2,7 @@ package imagescanner
 
 import (
 	"encoding/hex"
+	"hash"
 	"io"
 	"os"
 
@@ -17,24 +18,24 @@ import (
 
 type ImageScanner struct {
 	trackers []*Tracker
+	hash     hash.Hash
 }
 
 func NewImageScanner() *ImageScanner {
 	return &ImageScanner{
 		trackers: []*Tracker{},
+		hash:     sha256.New(),
 	}
 }
 
 func (s *ImageScanner) Scan(manifests []string) error {
-	hash := sha256.New()
-
 	for m := range manifests {
 		manifest, err := os.Open(manifests[m])
 		if err != nil {
 			return err
 		}
 
-		hash.Reset()
+		s.hash.Reset()
 
 		filter := &Filter{}
 		tracker := &Tracker{
@@ -45,7 +46,7 @@ func (s *ImageScanner) Scan(manifests []string) error {
 
 		pipeline := kio.Pipeline{
 			Inputs: []kio.Reader{
-				&kio.ByteReader{Reader: io.TeeReader(manifest, hash)},
+				&kio.ByteReader{Reader: io.TeeReader(manifest, s.hash)},
 			},
 			Filters: []kio.Filter{filter},
 		}
@@ -54,7 +55,7 @@ func (s *ImageScanner) Scan(manifests []string) error {
 			return err
 		}
 
-		tracker.ManifestDigest = hex.EncodeToString(hash.Sum(nil))
+		tracker.ManifestDigest = hex.EncodeToString(s.hash.Sum(nil))
 		s.trackers = append(s.trackers, tracker)
 	}
 	return nil
