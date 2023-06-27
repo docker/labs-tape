@@ -15,7 +15,9 @@ type Image struct {
 	OriginalTag  string
 
 	Digest string
-	NewRef string
+
+	NewName string
+	NewTag  string
 }
 
 func ImagePaths() []kustomize.FieldSpec {
