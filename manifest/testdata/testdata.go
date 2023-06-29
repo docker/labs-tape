@@ -1,11 +1,6 @@
 package testdata
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"io"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/docker/labs-brown-tape/manifest/types"
@@ -13,6 +8,7 @@ import (
 
 type TestCase struct {
 	Description string
+	Directory   string
 	Manifests   []string
 	Expected    []types.Image
 }
@@ -26,74 +22,38 @@ func (tcs TestCases) Run(t *testing.T, doTest func(tc TestCase) func(t *testing.
 	}
 }
 
-func (tcs TestCases) RelocateFiles(t *testing.T) {
-	tempDir := t.TempDir()
-	hash := sha256.New()
-	for i := range tcs {
-		translator := map[string]string{}
-		for m, manifest := range tcs[i].Manifests {
-			hash.Reset()
-			hash.Write([]byte(manifest))
-			newName := hex.EncodeToString(hash.Sum(nil)) + filepath.Ext(manifest)
-			newPath := filepath.Join(tempDir, newName)
-
-			translator[manifest] = newPath
-
-			newFile, err := os.Create(newPath)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			oldFile, err := os.Open(manifest)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			_, err = io.Copy(newFile, oldFile)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			tcs[i].Manifests[m] = newPath
-		}
-		for j := range tcs[i].Expected {
-			tcs[i].Expected[j].Manifest = translator[tcs[i].Expected[j].Manifest]
-		}
-
-	}
-}
-
 func BasicJSONCases() TestCases {
 	return []TestCase{{
 		Description: "basic",
+		Directory:   "../testdata/basic",
 		Manifests: []string{
-			"../testdata/basic/list.json",
-			"../testdata/basic/deployment.json",
+			"list.json",
+			"deployment.json",
 		},
 		Expected: []types.Image{
 			{
-				Manifest:       "../testdata/basic/list.json",
+				Manifest:       "list.json",
 				ManifestDigest: "577caeee80cfa690caf25bcdd4b1919b99d2860eb351c48e81b46b9e4b52aea5",
 				NodePath:       []string{"spec", "containers", "image"},
 				OriginalRef:    "nginx",
 				OriginalName:   "nginx",
 			},
 			{
-				Manifest:       "../testdata/basic/list.json",
+				Manifest:       "list.json",
 				ManifestDigest: "577caeee80cfa690caf25bcdd4b1919b99d2860eb351c48e81b46b9e4b52aea5",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "redis",
 				OriginalName:   "redis",
 			},
 			{
-				Manifest:       "../testdata/basic/list.json",
+				Manifest:       "list.json",
 				ManifestDigest: "577caeee80cfa690caf25bcdd4b1919b99d2860eb351c48e81b46b9e4b52aea5",
 				NodePath:       []string{"items", "spec", "containers", "image"},
 				OriginalRef:    "redis",
 				OriginalName:   "redis",
 			},
 			{
-				Manifest:       "../testdata/basic/deployment.json",
+				Manifest:       "deployment.json",
 				ManifestDigest: "8d85ce5a5de4085bb841cee0402022fcd03f86606a67d572e62012ce4420668c",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "nginx:1.16.1",
@@ -107,24 +67,25 @@ func BasicJSONCases() TestCases {
 var baseYAMLCases = []TestCase{
 	{
 		Description: "contour",
+		Directory:   "../testdata/contour",
 		Manifests: []string{
-			"../testdata/contour/00-common.yaml",
-			"../testdata/contour/00-crds.yaml",
-			"../testdata/contour/01-contour-config.yaml",
-			"../testdata/contour/01-crds.yaml",
-			"../testdata/contour/02-job-certgen.yaml",
-			"../testdata/contour/02-rbac.yaml",
-			"../testdata/contour/02-role-contour.yaml",
-			"../testdata/contour/02-service-contour.yaml",
-			"../testdata/contour/02-service-envoy.yaml",
-			"../testdata/contour/03-contour.yaml",
-			"../testdata/contour/03-envoy.yaml",
-			"../testdata/contour/04-gatewayclass.yaml",
-			"../testdata/contour/kustomization.yaml",
+			"00-common.yaml",
+			"00-crds.yaml",
+			"01-contour-config.yaml",
+			"01-crds.yaml",
+			"02-job-certgen.yaml",
+			"02-rbac.yaml",
+			"02-role-contour.yaml",
+			"02-service-contour.yaml",
+			"02-service-envoy.yaml",
+			"03-contour.yaml",
+			"03-envoy.yaml",
+			"04-gatewayclass.yaml",
+			"kustomization.yaml",
 		},
 		Expected: []types.Image{
 			{
-				Manifest:       "../testdata/contour/02-job-certgen.yaml",
+				Manifest:       "02-job-certgen.yaml",
 				ManifestDigest: "ba03dc02890e0ca080f12f03fd06a1d4f6b76ff75be0346ee27c9aa73c6d1d31",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "ghcr.io/projectcontour/contour:v1.24.1",
@@ -132,7 +93,7 @@ var baseYAMLCases = []TestCase{
 				OriginalTag:    "v1.24.1",
 			},
 			{
-				Manifest:       "../testdata/contour/03-contour.yaml",
+				Manifest:       "03-contour.yaml",
 				ManifestDigest: "a9de49647bab938407cb76c29f6b9465690bedb0b99a10736136f982d349d928",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "ghcr.io/projectcontour/contour:v1.24.1",
@@ -140,7 +101,7 @@ var baseYAMLCases = []TestCase{
 				OriginalTag:    "v1.24.1",
 			},
 			{
-				Manifest:       "../testdata/contour/03-envoy.yaml",
+				Manifest:       "03-envoy.yaml",
 				ManifestDigest: "e83cd3f98ddbbd91374511c8ce1e437d938ffc8ea8d50bc6d4ccdbf224e53ed4",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "ghcr.io/projectcontour/contour:v1.24.1",
@@ -148,7 +109,7 @@ var baseYAMLCases = []TestCase{
 				OriginalTag:    "v1.24.1",
 			},
 			{
-				Manifest:       "../testdata/contour/03-envoy.yaml",
+				Manifest:       "03-envoy.yaml",
 				ManifestDigest: "e83cd3f98ddbbd91374511c8ce1e437d938ffc8ea8d50bc6d4ccdbf224e53ed4",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "docker.io/envoyproxy/envoy:v1.25.1",
@@ -156,7 +117,7 @@ var baseYAMLCases = []TestCase{
 				OriginalTag:    "v1.25.1",
 			},
 			{
-				Manifest:       "../testdata/contour/03-envoy.yaml",
+				Manifest:       "03-envoy.yaml",
 				ManifestDigest: "e83cd3f98ddbbd91374511c8ce1e437d938ffc8ea8d50bc6d4ccdbf224e53ed4",
 				NodePath:       []string{"spec", "template", "spec", "initContainers", "image"},
 				OriginalRef:    "ghcr.io/projectcontour/contour:v1.24.1",
@@ -167,13 +128,14 @@ var baseYAMLCases = []TestCase{
 	},
 	{
 		Description: "flux",
+		Directory:   "../testdata/flux",
 		Manifests: []string{
-			"../testdata/flux/flux.yaml",
-			"../testdata/flux/kustomization.yaml",
+			"flux.yaml",
+			"kustomization.yaml",
 		},
 		Expected: []types.Image{
 			{
-				Manifest:       "../testdata/flux/flux.yaml",
+				Manifest:       "flux.yaml",
 				ManifestDigest: "39ad63101dbb2ead069ca6185bd44f99f52b8513682d6002109c9b0db23f73b5",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "ghcr.io/fluxcd/kustomize-controller:v0.30.0",
@@ -181,7 +143,7 @@ var baseYAMLCases = []TestCase{
 				OriginalTag:    "v0.30.0",
 			},
 			{
-				Manifest:       "../testdata/flux/flux.yaml",
+				Manifest:       "flux.yaml",
 				ManifestDigest: "39ad63101dbb2ead069ca6185bd44f99f52b8513682d6002109c9b0db23f73b5",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "ghcr.io/fluxcd/source-controller:v0.31.0",
@@ -192,17 +154,18 @@ var baseYAMLCases = []TestCase{
 	},
 	{
 		Description: "tekton",
+		Directory:   "../testdata/tekton",
 		Manifests: []string{
-			"../testdata/tekton/base/feature-flags.yaml",
-			"../testdata/tekton/base/kustomization.yaml",
-			"../testdata/tekton/base/tekton-base.yaml",
-			"../testdata/tekton/webhooks/kustomization.yaml",
-			"../testdata/tekton/webhooks/tekton-mutating-webhooks.yaml",
-			"../testdata/tekton/webhooks/tekton-validating-webhooks.yaml",
+			"base/feature-flags.yaml",
+			"base/kustomization.yaml",
+			"base/tekton-base.yaml",
+			"webhooks/kustomization.yaml",
+			"webhooks/tekton-mutating-webhooks.yaml",
+			"webhooks/tekton-validating-webhooks.yaml",
 		},
 		Expected: []types.Image{
 			{
-				Manifest:       "../testdata/tekton/base/tekton-base.yaml",
+				Manifest:       "base/tekton-base.yaml",
 				ManifestDigest: "c2cbc6d7a3c30f99e2e504d5758d8e0ce140a8f444c4d944d85c3f29800bf8c5",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/controller:v0.40.2@sha256:dc7bc7d6607466b502d8dc22ba0598461d7477f608ab68aaff1ff4dedaa04f81",
@@ -211,7 +174,7 @@ var baseYAMLCases = []TestCase{
 				Digest:         "sha256:dc7bc7d6607466b502d8dc22ba0598461d7477f608ab68aaff1ff4dedaa04f81",
 			},
 			{
-				Manifest:       "../testdata/tekton/base/tekton-base.yaml",
+				Manifest:       "base/tekton-base.yaml",
 				ManifestDigest: "c2cbc6d7a3c30f99e2e504d5758d8e0ce140a8f444c4d944d85c3f29800bf8c5",
 				NodePath:       []string{"spec", "template", "spec", "containers", "image"},
 				OriginalRef:    "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/webhook:v0.40.2@sha256:6b8aadbdcede63969ecb719e910b55b7681d87110fc0bf92ca4ee943042f620b",

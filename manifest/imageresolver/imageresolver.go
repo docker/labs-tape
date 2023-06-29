@@ -10,7 +10,7 @@ import (
 )
 
 type Resolver interface {
-	ResolveDigests([]types.Image) error
+	ResolveDigests(*types.ImageList) error
 }
 
 // TODO: add known digests to RegistryResolver, so that user can specify digests of newly built images
@@ -20,9 +20,9 @@ func NewRegistryResolver() Resolver {
 	return &RegistryResolver{}
 }
 
-func (r *RegistryResolver) ResolveDigests(images []types.Image) error {
-	for i := range images {
-		if err := r.doResolveDigest(&images[i]); err != nil {
+func (r *RegistryResolver) ResolveDigests(images *types.ImageList) error {
+	for i := range images.Items() {
+		if err := r.doResolveDigest(&images.Items()[i]); err != nil {
 			return err
 		}
 	}

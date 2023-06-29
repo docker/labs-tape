@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	. "github.com/docker/labs-brown-tape/manifest/imagescanner"
+	"github.com/docker/labs-brown-tape/manifest/loader"
 	"github.com/docker/labs-brown-tape/manifest/testdata"
 )
 
@@ -24,14 +25,20 @@ func makeImageScannerTest(tc testdata.TestCase) func(t *testing.T) {
 		g := NewWithT(t)
 		t.Parallel()
 
-		scanner := NewImageScanner()
+		loader := loader.NewRecursiveManifestDirectoryLoader(tc.Directory)
+		g.Expect(loader.Load()).To(Succeed())
 
-		g.Expect(scanner.Scan(tc.Manifests)).To(Succeed())
+		expectedNumPaths := len(tc.Manifests)
+		g.Expect(loader.Paths()).To(HaveLen(expectedNumPaths))
+
+		scanner := NewDefaultImageScanner()
+
+		g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
 		images := scanner.GetImages()
 
 		if tc.Expected != nil {
-			g.Expect(images).To(Equal(tc.Expected))
+			g.Expect(images.Items()).To(ConsistOf(tc.Expected))
 		} else {
 			t.Logf("%#v\n", images)
 		}

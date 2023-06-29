@@ -5,6 +5,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"path/filepath"
 
 	"crypto/sha256"
 
@@ -15,22 +16,29 @@ import (
 )
 
 // TODO(attest): provide an attestation for each original file inspected and the image refs found
-
-type ImageScanner struct {
-	trackers []*Tracker
-	hash     hash.Hash
+type ImageScanner interface {
+	Scan(string, []string) error
+	GetImages() *types.ImageList
+	Reset()
 }
 
-func NewImageScanner() *ImageScanner {
-	return &ImageScanner{
+type DefaultImageScanner struct {
+	directory string
+	trackers  []*Tracker
+	hash      hash.Hash
+}
+
+func NewDefaultImageScanner() ImageScanner {
+	return &DefaultImageScanner{
 		trackers: []*Tracker{},
 		hash:     sha256.New(),
 	}
 }
 
-func (s *ImageScanner) Scan(manifests []string) error {
+func (s *DefaultImageScanner) Scan(dir string, manifests []string) error {
+	s.directory = dir
 	for m := range manifests {
-		manifest, err := os.Open(manifests[m])
+		manifest, err := os.Open(filepath.Join(dir, manifests[m]))
 		if err != nil {
 			return err
 		}
@@ -61,13 +69,13 @@ func (s *ImageScanner) Scan(manifests []string) error {
 	return nil
 }
 
-func (i *ImageScanner) GetImages() []types.Image {
-	images := []types.Image{}
-	for _, v := range i.trackers {
+func (s *DefaultImageScanner) GetImages() *types.ImageList {
+	images := types.NewImageList(s.directory)
+	for _, v := range s.trackers {
 		for _, vv := range v.SetValueArgs() {
 
 			name, tag, digest := image.Split(vv.Value)
-			images = append(images, types.Image{
+			images.Append(types.Image{
 				Manifest:       v.Manifest,
 				ManifestDigest: v.ManifestDigest,
 				NodePath:       vv.NodePath,
@@ -78,10 +86,9 @@ func (i *ImageScanner) GetImages() []types.Image {
 			})
 		}
 	}
-	i.trackers = []*Tracker{}
 	return images
 }
 
-func (i *ImageScanner) Reset() {
-	i.trackers = []*Tracker{}
+func (s *DefaultImageScanner) Reset() {
+	s.trackers = []*Tracker{}
 }

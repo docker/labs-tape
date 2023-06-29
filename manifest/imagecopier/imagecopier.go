@@ -13,7 +13,7 @@ import (
 )
 
 type ImageCopier interface {
-	CopyImages([]types.Image) error
+	CopyImages(*types.ImageList) error
 }
 
 type RegistryCopier struct {
@@ -28,9 +28,9 @@ func NewRegistryCopier(destinationRef string) ImageCopier {
 	}
 }
 
-func (c *RegistryCopier) CopyImages(images []types.Image) error {
-	SetNewImageRefs(c.DestinationRef, c.hash, images)
-	for _, image := range images {
+func (c *RegistryCopier) CopyImages(images *types.ImageList) error {
+	SetNewImageRefs(c.DestinationRef, c.hash, images.Items())
+	for _, image := range images.Items() {
 		newRef := image.NewName + ":" + image.NewTag
 		if err := crane.Copy(image.OriginalRef, newRef, crane.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 			return err

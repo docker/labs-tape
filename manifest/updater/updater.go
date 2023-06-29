@@ -11,28 +11,20 @@ import (
 // TODO(attest): provide an attestation for each new manifest and reference checksum of the original manifest
 
 type Updater interface {
-	Update([]types.Image) error
+	Update(*types.ImageList) error
 }
 
 func NewFileUpdater() Updater { return &FileUpdater{} }
 
 type FileUpdater struct{}
 
-func (u *FileUpdater) Update(images []types.Image) error {
-	for manifest, images := range u.groupByManifest(images) {
-		if err := u.doUpdate(manifest, images); err != nil {
+func (u *FileUpdater) Update(images *types.ImageList) error {
+	for manifest, images := range images.GroupByManifest() {
+		if err := u.doUpdate(manifest, images.Items()); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func (u *FileUpdater) groupByManifest(images []types.Image) map[string][]types.Image {
-	groups := map[string][]types.Image{}
-	for i := range images {
-		groups[images[i].Manifest] = append(groups[images[i].Manifest], images[i])
-	}
-	return groups
 }
 
 func (u *FileUpdater) doUpdate(manifest string, images []types.Image) error {

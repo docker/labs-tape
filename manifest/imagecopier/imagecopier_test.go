@@ -11,6 +11,7 @@ import (
 	. "github.com/docker/labs-brown-tape/manifest/imagecopier"
 	"github.com/docker/labs-brown-tape/manifest/imageresolver"
 	"github.com/docker/labs-brown-tape/manifest/imagescanner"
+	"github.com/docker/labs-brown-tape/manifest/loader"
 	"github.com/docker/labs-brown-tape/manifest/testdata"
 )
 
@@ -29,9 +30,15 @@ func makeImageCopierTest(tc testdata.TestCase) func(t *testing.T) {
 		g := NewWithT(t)
 		t.Parallel()
 
-		scanner := imagescanner.NewImageScanner()
+		loader := loader.NewRecursiveManifestDirectoryLoader(tc.Directory)
+		g.Expect(loader.Load()).To(Succeed())
 
-		g.Expect(scanner.Scan(tc.Manifests)).To(Succeed())
+		expectedNumPaths := len(tc.Manifests)
+		g.Expect(loader.Paths()).To(HaveLen(expectedNumPaths))
+
+		scanner := imagescanner.NewDefaultImageScanner()
+
+		g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
 		images := scanner.GetImages()
 
@@ -43,7 +50,7 @@ func makeImageCopierTest(tc testdata.TestCase) func(t *testing.T) {
 		SetNewImageRefs(newDestination(tc.Description), sha256.New(), tc.Expected)
 
 		if tc.Expected != nil {
-			g.Expect(images).To(Equal(tc.Expected))
+			g.Expect(images.Items()).To(ConsistOf(tc.Expected))
 		} else {
 			t.Logf("%#v\n", images)
 		}
