@@ -1,36 +1,43 @@
 package imageresolver
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
+	ociclient "github.com/fluxcd/pkg/oci/client"
 	"github.com/google/go-containerregistry/pkg/crane"
 
 	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
 type Resolver interface {
-	ResolveDigests(*types.ImageList) error
+	ResolveDigests(context.Context, *types.ImageList) error
 }
 
 // TODO: add known digests to RegistryResolver, so that user can specify digests of newly built images
-type RegistryResolver struct{}
-
-func NewRegistryResolver() Resolver {
-	return &RegistryResolver{}
+type RegistryResolver struct {
+	*ociclient.Client
 }
 
-func (r *RegistryResolver) ResolveDigests(images *types.ImageList) error {
+func NewRegistryResolver(client *ociclient.Client) Resolver {
+	return &RegistryResolver{
+		Client: client,
+	}
+}
+
+func (r *RegistryResolver) ResolveDigests(ctx context.Context, images *types.ImageList) error {
 	for i := range images.Items() {
-		if err := r.doResolveDigest(&images.Items()[i]); err != nil {
+		if err := r.doResolveDigest(ctx, &images.Items()[i]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r *RegistryResolver) doResolveDigest(i *types.Image) error {
-	digest, err := crane.Digest(i.OriginalRef, crane.WithAuthFromKeychain(authn.DefaultKeychain))
+func (r *RegistryResolver) doResolveDigest(ctx context.Context, i *types.Image) error {
+	options := append([]crane.Option{crane.WithContext(ctx)}, r.GetOptions()...)
+
+	digest, err := crane.Digest(i.OriginalRef, options...)
 	if err != nil {
 		return err
 	}

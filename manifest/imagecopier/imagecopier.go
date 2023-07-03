@@ -1,41 +1,47 @@
 package imagecopier
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"hash"
 
-	"github.com/google/go-containerregistry/pkg/authn"
+	ociclient "github.com/fluxcd/pkg/oci/client"
 	"github.com/google/go-containerregistry/pkg/crane"
 
 	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
 type ImageCopier interface {
-	CopyImages(*types.ImageList) error
+	CopyImages(context.Context, *types.ImageList) error
 }
 
 type RegistryCopier struct {
+	*ociclient.Client
+
 	DestinationRef string
 	hash           hash.Hash
 }
 
-func NewRegistryCopier(destinationRef string) ImageCopier {
+func NewRegistryCopier(client *ociclient.Client, destinationRef string) ImageCopier {
 	return &RegistryCopier{
+		Client:         client,
 		DestinationRef: destinationRef,
 		hash:           sha256.New(),
 	}
 }
 
-func (c *RegistryCopier) CopyImages(images *types.ImageList) error {
+func (c *RegistryCopier) CopyImages(ctx context.Context, images *types.ImageList) error {
+	options := append([]crane.Option{crane.WithContext(ctx)}, c.GetOptions()...)
+
 	SetNewImageRefs(c.DestinationRef, c.hash, images.Items())
 	for _, image := range images.Items() {
 		newRef := image.NewName + ":" + image.NewTag
-		if err := crane.Copy(image.OriginalRef, newRef, crane.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+		if err := crane.Copy(image.OriginalRef, newRef, options...); err != nil {
 			return err
 		}
-		digest, err := crane.Digest(newRef, crane.WithAuthFromKeychain(authn.DefaultKeychain))
+		digest, err := crane.Digest(newRef, options...)
 		if err != nil {
 			return err
 		}

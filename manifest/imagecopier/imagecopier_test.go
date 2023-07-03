@@ -1,12 +1,15 @@
 package imagecopier_test
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
+
+	ociclient "github.com/fluxcd/pkg/oci/client"
 
 	. "github.com/docker/labs-brown-tape/manifest/imagecopier"
 	"github.com/docker/labs-brown-tape/manifest/imageresolver"
@@ -40,12 +43,15 @@ func makeImageCopierTest(tc testdata.TestCase) func(t *testing.T) {
 
 		g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
+		ctx := context.Background()
+		client := ociclient.NewClient(nil)
+
 		images := scanner.GetImages()
 
 		// TODO: should this use fake resolver to avoid network traffic?
-		g.Expect(imageresolver.NewRegistryResolver().ResolveDigests(images)).To(Succeed())
+		g.Expect(imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
 
-		g.Expect(NewRegistryCopier(newDestination(tc.Description)).CopyImages(images)).To(Succeed())
+		g.Expect(NewRegistryCopier(client, newDestination(tc.Description)).CopyImages(ctx, images)).To(Succeed())
 
 		SetNewImageRefs(newDestination(tc.Description), sha256.New(), tc.Expected)
 
