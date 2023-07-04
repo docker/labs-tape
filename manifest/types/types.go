@@ -48,6 +48,10 @@ func (l *ImageList) Paths() []string {
 	return paths
 }
 
+func (l *ImageList) Dir() string {
+	return l.dir
+}
+
 func (l *ImageList) Items() []Image {
 	return l.items
 }
