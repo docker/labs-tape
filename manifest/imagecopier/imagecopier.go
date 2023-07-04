@@ -62,6 +62,6 @@ func doSetNewImageRef(destinationRef string, hash hash.Hash, i *types.Image) {
 	i.NewName = destinationRef
 
 	hash.Reset()
-	hash.Write([]byte(i.OriginalName + ":" + i.OriginalTag))
+	_, _ = hash.Write([]byte(i.OriginalName + ":" + i.OriginalTag))
 	i.NewTag = types.AppImageTagPrefix + hex.EncodeToString(hash.Sum(nil))
 }
