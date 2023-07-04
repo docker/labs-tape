@@ -6,6 +6,11 @@ import (
 	kustomize "sigs.k8s.io/kustomize/api/types"
 )
 
+const (
+	AppImageTagPrefix    = "app."
+	ConfigImageTagPrefix = "config."
+)
+
 type (
 	Image struct {
 		Manifest       string
