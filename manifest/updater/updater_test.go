@@ -22,7 +22,7 @@ import (
 
 var destinationUUID = uuid.New().String()
 
-func newDestination(name string) string {
+func makeDestination(name string) string {
 	return fmt.Sprintf("ttl.sh/%s/bpt-updater-test-%s", destinationUUID, name)
 }
 
@@ -58,9 +58,9 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 		// TODO: should this use fake resolver to avoid network traffic?
 		g.Expect(imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
 
-		g.Expect(imagecopier.NewRegistryCopier(client, newDestination(tc.Description)).CopyImages(ctx, images)).To(Succeed())
+		g.Expect(imagecopier.NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)).To(Succeed())
 
-		imagecopier.SetNewImageRefs(newDestination(tc.Description), sha256.New(), tc.Expected)
+		imagecopier.SetNewImageRefs(makeDestination(tc.Description), sha256.New(), tc.Expected)
 
 		g.Expect(NewFileUpdater().Update(images)).To(Succeed())
 

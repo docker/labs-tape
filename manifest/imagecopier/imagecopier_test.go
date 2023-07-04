@@ -20,7 +20,7 @@ import (
 
 var destinationUUID = uuid.New().String()
 
-func newDestination(name string) string {
+func makeDestination(name string) string {
 	return fmt.Sprintf("ttl.sh/%s/bpt-imagecopier-test-%s", destinationUUID, name)
 }
 
@@ -51,9 +51,9 @@ func makeImageCopierTest(tc testdata.TestCase) func(t *testing.T) {
 		// TODO: should this use fake resolver to avoid network traffic?
 		g.Expect(imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
 
-		g.Expect(NewRegistryCopier(client, newDestination(tc.Description)).CopyImages(ctx, images)).To(Succeed())
+		g.Expect(NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)).To(Succeed())
 
-		SetNewImageRefs(newDestination(tc.Description), sha256.New(), tc.Expected)
+		SetNewImageRefs(makeDestination(tc.Description), sha256.New(), tc.Expected)
 
 		if tc.Expected != nil {
 			g.Expect(images.Items()).To(ConsistOf(tc.Expected))
