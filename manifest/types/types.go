@@ -76,6 +76,25 @@ func (l *ImageList) GroupByManifest() map[string]*ImageList {
 	return groups
 }
 
+func (i Image) Ref(original bool) string {
+	ref := ""
+	if original {
+		ref = i.OriginalName
+		if i.OriginalTag != "" {
+			ref += ":" + i.OriginalTag
+		}
+	} else {
+		ref = i.NewName
+		if i.NewTag != "" {
+			ref += ":" + i.NewTag
+		}
+	}
+	if i.Digest != "" {
+		ref += "@" + i.Digest
+	}
+	return ref
+}
+
 func ImagePaths() []kustomize.FieldSpec {
 	return []kustomize.FieldSpec{
 		{Path: "spec/containers[]/image"},
