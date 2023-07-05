@@ -25,6 +25,9 @@ type DefaultPackager struct {
 }
 
 func NewDefaultPackager(client *ociclient.Client, destinationRef string) Packager {
+	if client == nil {
+		client = ociclient.NewClient(nil)
+	}
 	return &DefaultPackager{
 		Client:         client,
 		DestinationRef: destinationRef,

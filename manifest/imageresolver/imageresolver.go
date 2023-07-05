@@ -20,6 +20,9 @@ type RegistryResolver struct {
 }
 
 func NewRegistryResolver(client *ociclient.Client) Resolver {
+	if client == nil {
+		client = ociclient.NewClient(nil)
+	}
 	return &RegistryResolver{
 		Client: client,
 	}

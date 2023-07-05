@@ -25,6 +25,9 @@ type RegistryCopier struct {
 }
 
 func NewRegistryCopier(client *ociclient.Client, destinationRef string) ImageCopier {
+	if client == nil {
+		client = ociclient.NewClient(nil)
+	}
 	return &RegistryCopier{
 		Client:         client,
 		DestinationRef: destinationRef,
