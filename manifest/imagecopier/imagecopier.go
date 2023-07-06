@@ -4,13 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"hash"
 
-	ociclient "github.com/fluxcd/pkg/oci/client"
-	"github.com/google/go-containerregistry/pkg/crane"
-
 	"github.com/docker/labs-brown-tape/manifest/types"
+	"github.com/docker/labs-brown-tape/oci"
 )
 
 type ImageCopier interface {
@@ -18,15 +15,15 @@ type ImageCopier interface {
 }
 
 type RegistryCopier struct {
-	*ociclient.Client
+	*oci.Client
 
 	DestinationRef string
 	hash           hash.Hash
 }
 
-func NewRegistryCopier(client *ociclient.Client, destinationRef string) ImageCopier {
+func NewRegistryCopier(client *oci.Client, destinationRef string) ImageCopier {
 	if client == nil {
-		client = ociclient.NewClient(nil)
+		client = oci.NewClient(nil)
 	}
 	return &RegistryCopier{
 		Client:         client,
@@ -36,20 +33,11 @@ func NewRegistryCopier(client *ociclient.Client, destinationRef string) ImageCop
 }
 
 func (c *RegistryCopier) CopyImages(ctx context.Context, images *types.ImageList) error {
-	options := append([]crane.Option{crane.WithContext(ctx)}, c.GetOptions()...)
-
 	SetNewImageRefs(c.DestinationRef, c.hash, images.Items())
 	for _, image := range images.Items() {
 		newRef := image.NewName + ":" + image.NewTag
-		if err := crane.Copy(image.OriginalRef, newRef, options...); err != nil {
+		if err := c.Copy(ctx, image.Ref(true), newRef, image.Digest); err != nil {
 			return err
-		}
-		digest, err := crane.Digest(newRef, options...)
-		if err != nil {
-			return err
-		}
-		if digest != image.Digest {
-			return fmt.Errorf("unexpected digest mismatch after copying: %s (from destination registry) != %s (from source registry)", digest, image.Digest)
 		}
 	}
 	return nil

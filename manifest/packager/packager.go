@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/kustomize/api/image"
 
 	"github.com/docker/labs-brown-tape/manifest/types"
+	"github.com/docker/labs-brown-tape/oci"
 )
 
 type Packager interface {
@@ -19,14 +20,14 @@ type Packager interface {
 }
 
 type DefaultPackager struct {
-	*ociclient.Client
+	*oci.Client
 	DestinationRef string
 	hash           hash.Hash
 }
 
-func NewDefaultPackager(client *ociclient.Client, destinationRef string) Packager {
+func NewDefaultPackager(client *oci.Client, destinationRef string) Packager {
 	if client == nil {
-		client = ociclient.NewClient(nil)
+		client = oci.NewClient(nil)
 	}
 	return &DefaultPackager{
 		Client:         client,

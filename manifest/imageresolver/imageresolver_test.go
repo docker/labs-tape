@@ -6,8 +6,6 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	ociclient "github.com/fluxcd/pkg/oci/client"
-
 	. "github.com/docker/labs-brown-tape/manifest/imageresolver"
 	"github.com/docker/labs-brown-tape/manifest/imagescanner"
 	"github.com/docker/labs-brown-tape/manifest/loader"
@@ -36,12 +34,11 @@ func makeImageResolverTest(tc testdata.TestCase) func(t *testing.T) {
 		g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
 		ctx := context.Background()
-		client := ociclient.NewClient(nil)
 
 		images := scanner.GetImages()
 
 		// TODO: should this use fake resolver to avoid network traffic?
-		g.Expect(NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
+		g.Expect(NewRegistryResolver(nil).ResolveDigests(ctx, images)).To(Succeed())
 
 		if tc.Expected != nil {
 			g.Expect(images.Items()).To(ConsistOf(tc.Expected))
