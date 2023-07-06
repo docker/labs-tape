@@ -9,13 +9,12 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
 
-	ociclient "github.com/fluxcd/pkg/oci/client"
-
 	. "github.com/docker/labs-brown-tape/manifest/imagecopier"
 	"github.com/docker/labs-brown-tape/manifest/imageresolver"
 	"github.com/docker/labs-brown-tape/manifest/imagescanner"
 	"github.com/docker/labs-brown-tape/manifest/loader"
 	"github.com/docker/labs-brown-tape/manifest/testdata"
+	"github.com/docker/labs-brown-tape/oci"
 )
 
 var destinationUUID = uuid.New().String()
@@ -44,7 +43,7 @@ func makeImageCopierTest(tc testdata.TestCase) func(t *testing.T) {
 		g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
 		ctx := context.Background()
-		client := ociclient.NewClient(nil)
+		client := oci.NewClient(nil)
 
 		images := scanner.GetImages()
 

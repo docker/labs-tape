@@ -12,6 +12,9 @@ const (
 )
 
 type (
+	// TODO: this is not optimal as resolution and copying ends up being done for each item,
+	// and those can be repeated a few times;  the structure should evolve so that there is
+	// a unique entry with references to multiple origins
 	Image struct {
 		Manifest       string
 		ManifestDigest string
@@ -54,6 +57,27 @@ func (l *ImageList) Dir() string {
 
 func (l *ImageList) Items() []Image {
 	return l.items
+}
+
+func (l *ImageList) UniqueItems() []Image {
+	type key [2]string
+	unique := map[key]Image{}
+	for _, image := range l.items {
+		unique[key{image.OriginalRef, image.Digest}] = Image{
+			OriginalRef:  image.OriginalRef,
+			OriginalTag:  image.OriginalTag,
+			OriginalName: image.OriginalName,
+			Digest:       image.Digest,
+			NewName:      image.NewName,
+			NewTag:       image.NewTag,
+		}
+	}
+
+	items := []Image{}
+	for _, v := range unique {
+		items = append(items, v)
+	}
+	return items
 }
 
 func (l *ImageList) Len() int {
