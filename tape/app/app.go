@@ -161,7 +161,9 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 	// TODO: attempt call `cosign download signature` and find out who signed the image
 	// TODO: get OCI annotations, artefact manifest, attestation manifest and platforms
 
-	for _, image := range images.UniqueItems() {
+	images.Dedup()
+
+	for _, image := range images.Items() {
 		ref := image.Ref(true)
 
 		index, err := client.Index(ctx, ref)
@@ -172,7 +174,11 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 		if _, ok := digestProvided[ref]; ok {
 			digestResolved = false
 		}
-		fmt.Printf("%s\t(digestProvided=%v)\n", ref, !digestResolved)
+		fmt.Printf("%s\t(digestProvided=%v occurrances=%d)\n", ref, !digestResolved, len(image.Sources))
+
+		for _, source := range image.Sources {
+			fmt.Printf("\t%s:%d:%d (%s)\n", source.Manifest, source.Line, source.Column, source.ManifestDigest)
+		}
 
 		relatedTo := map[string][]oci.Metadata{}
 

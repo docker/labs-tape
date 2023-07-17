@@ -66,10 +66,9 @@ func (f Filter) SetValue(rn *yaml.RNode) error {
 }
 
 type SetValueArg struct {
-	Key      string
-	Value    string
-	Tag      string
-	NodePath []string
+	Key, Value, Tag string
+	Line, Column    int
+	NodePath        []string
 }
 
 type Tracker struct {
@@ -85,6 +84,8 @@ func (t *Tracker) MutationTracker(key, value, tag string, node *yaml.RNode) {
 		Value:    value,
 		Tag:      tag,
 		NodePath: node.FieldPath(),
+		Line:     node.Document().Line,
+		Column:   node.Document().Column,
 	})
 }
 

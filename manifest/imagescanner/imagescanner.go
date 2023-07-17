@@ -76,13 +76,19 @@ func (s *DefaultImageScanner) GetImages() *types.ImageList {
 
 			name, tag, digest := image.Split(vv.Value)
 			images.Append(types.Image{
-				Manifest:       v.Manifest,
-				ManifestDigest: v.ManifestDigest,
-				NodePath:       vv.NodePath,
-				OriginalRef:    vv.Value,
-				OriginalName:   name,
-				OriginalTag:    tag,
-				Digest:         digest,
+				Source: &types.Source{
+					ImageSourceLocation: types.ImageSourceLocation{
+						Manifest:       v.Manifest,
+						ManifestDigest: v.ManifestDigest,
+						NodePath:       vv.NodePath,
+						Line:           vv.Line,
+						Column:         vv.Column,
+					},
+					OriginalRef: vv.Value,
+				},
+				OriginalName: name,
+				OriginalTag:  tag,
+				Digest:       digest,
 			})
 		}
 	}

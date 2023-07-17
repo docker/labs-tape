@@ -16,12 +16,9 @@ type (
 	// and those can be repeated a few times;  the structure should evolve so that there is
 	// a unique entry with references to multiple origins
 	Image struct {
-		Manifest       string
-		ManifestDigest string
+		*Source
+		Sources []Source
 
-		NodePath []string
-
-		OriginalRef  string
 		OriginalName string
 		OriginalTag  string
 
@@ -31,9 +28,27 @@ type (
 		NewTag  string
 	}
 
+	// ImageSource contains fields that are collected from a manifest and will not mutate
+	Source struct {
+		ImageSourceLocation
+		OriginalRef string
+	}
+	// ImageSourceLocation is a unique location identifier for an image
+	ImageSourceLocation struct {
+		Manifest       string
+		ManifestDigest string
+
+		Line, Column int
+
+		NodePath []string
+	}
 	ImageList struct {
 		items []Image
 		dir   string
+	}
+
+	ImageSet struct {
+		items []Image
 	}
 )
 
@@ -59,12 +74,17 @@ func (l *ImageList) Items() []Image {
 	return l.items
 }
 
-func (l *ImageList) UniqueItems() []Image {
+func (l *ImageList) Dedup() {
 	type key [2]string
 	unique := map[key]Image{}
 	for _, image := range l.items {
+		sources := []Source{*image.Source}
+		existing, present := unique[key{image.OriginalRef, image.Digest}]
+		if present {
+			sources = append(sources, existing.Sources...)
+		}
 		unique[key{image.OriginalRef, image.Digest}] = Image{
-			OriginalRef:  image.OriginalRef,
+			Sources:      sources,
 			OriginalTag:  image.OriginalTag,
 			OriginalName: image.OriginalName,
 			Digest:       image.Digest,
@@ -73,11 +93,10 @@ func (l *ImageList) UniqueItems() []Image {
 		}
 	}
 
-	items := []Image{}
+	l.items = make([]Image, 0, len(unique))
 	for _, v := range unique {
-		items = append(items, v)
+		l.items = append(l.items, v)
 	}
-	return items
 }
 
 func (l *ImageList) Len() int {
