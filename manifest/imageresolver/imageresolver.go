@@ -37,7 +37,7 @@ func (r *RegistryResolver) ResolveDigests(ctx context.Context, images *types.Ima
 }
 
 func (r *RegistryResolver) doResolveDigest(ctx context.Context, i *types.Image) error {
-	digest, err := r.Digest(ctx, i.OriginalRef)
+	digest, err := r.Digest(ctx, i.Ref(true))
 	if err != nil {
 		return err
 	}

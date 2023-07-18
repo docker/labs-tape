@@ -7,8 +7,10 @@ require (
 	github.com/fluxcd/pkg/oci v0.30.0
 	github.com/google/go-containerregistry v0.15.2
 	github.com/google/uuid v1.3.0
+	github.com/in-toto/in-toto-golang v0.9.0
 	github.com/onsi/gomega v1.27.8
 	github.com/otiai10/copy v1.12.0
+	github.com/sigstore/sigstore v1.7.1
 	github.com/thought-machine/go-flags v1.6.2
 	sigs.k8s.io/kustomize/api v0.13.4
 	sigs.k8s.io/kustomize/kyaml v0.14.2
@@ -87,7 +89,8 @@ require (
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
-	github.com/sigstore/sigstore v1.7.1 // indirect
+	github.com/secure-systems-lab/go-securesystemslib v0.6.0 // indirect
+	github.com/shibumi/go-pathspec v1.3.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/theupdateframework/go-tuf v0.5.2 // indirect
@@ -97,7 +100,7 @@ require (
 	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/net v0.11.0 // indirect
 	golang.org/x/oauth2 v0.9.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/sync v0.2.0 // indirect
 	golang.org/x/sys v0.9.0 // indirect
 	golang.org/x/term v0.9.0 // indirect
 	golang.org/x/text v0.10.0 // indirect

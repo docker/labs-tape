@@ -2,6 +2,7 @@ package types
 
 import (
 	"path/filepath"
+	"sync"
 
 	kustomize "sigs.k8s.io/kustomize/api/types"
 )
@@ -43,18 +44,16 @@ type (
 		NodePath []string
 	}
 	ImageList struct {
-		items []Image
-		dir   string
-	}
-
-	ImageSet struct {
-		items []Image
+		items      []Image
+		dir        string
+		dedupeLock *sync.Once
 	}
 )
 
 func NewImageList(dir string) *ImageList {
 	return &ImageList{
-		dir: dir,
+		dir:        dir,
+		dedupeLock: &sync.Once{},
 	}
 }
 
@@ -76,27 +75,30 @@ func (l *ImageList) Items() []Image {
 
 func (l *ImageList) Dedup() {
 	type key [2]string
-	unique := map[key]Image{}
-	for _, image := range l.items {
-		sources := []Source{*image.Source}
-		existing, present := unique[key{image.OriginalRef, image.Digest}]
-		if present {
-			sources = append(sources, existing.Sources...)
-		}
-		unique[key{image.OriginalRef, image.Digest}] = Image{
-			Sources:      sources,
-			OriginalTag:  image.OriginalTag,
-			OriginalName: image.OriginalName,
-			Digest:       image.Digest,
-			NewName:      image.NewName,
-			NewTag:       image.NewTag,
-		}
-	}
 
-	l.items = make([]Image, 0, len(unique))
-	for _, v := range unique {
-		l.items = append(l.items, v)
-	}
+	l.dedupeLock.Do(func() {
+		unique := map[key]Image{}
+		for _, image := range l.items {
+			sources := []Source{*image.Source}
+			existing, present := unique[key{image.OriginalRef, image.Digest}]
+			if present {
+				sources = append(sources, existing.Sources...)
+			}
+			unique[key{image.OriginalRef, image.Digest}] = Image{
+				Sources:      sources,
+				OriginalTag:  image.OriginalTag,
+				OriginalName: image.OriginalName,
+				Digest:       image.Digest,
+				NewName:      image.NewName,
+				NewTag:       image.NewTag,
+			}
+		}
+
+		l.items = make([]Image, 0, len(unique))
+		for _, v := range unique {
+			l.items = append(l.items, v)
+		}
+	})
 }
 
 func (l *ImageList) Len() int {

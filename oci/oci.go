@@ -9,11 +9,15 @@ import (
 	ociclient "github.com/fluxcd/pkg/oci/client"
 	"github.com/google/go-containerregistry/pkg/crane"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	typesv1 "github.com/google/go-containerregistry/pkg/v1/types"
 	// OCIv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type (
-	Metadata = ociclient.Metadata
+	Metadata  = ociclient.Metadata
+	MediaType = typesv1.MediaType
+	Platform  = v1.Platform
+	Hash      = v1.Hash
 
 	Client struct {
 		*ociclient.Client
