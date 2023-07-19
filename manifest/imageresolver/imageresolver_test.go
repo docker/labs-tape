@@ -36,7 +36,6 @@ func makeImageResolverTest(tc testdata.TestCase) func(t *testing.T) {
 		ctx := context.Background()
 
 		images := scanner.GetImages()
-
 		// TODO: should this use fake resolver to avoid network traffic?
 		g.Expect(NewRegistryResolver(nil).ResolveDigests(ctx, images)).To(Succeed())
 
