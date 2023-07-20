@@ -2,6 +2,7 @@ package types
 
 import (
 	"path/filepath"
+	"sort"
 	"sync"
 
 	kustomize "sigs.k8s.io/kustomize/api/types"
@@ -96,6 +97,15 @@ func (l *ImageList) Dedup() {
 
 		l.items = make([]Image, 0, len(unique))
 		for _, v := range unique {
+			sort.Slice(v.Sources, func(i, j int) bool {
+				if v.Sources[i].Manifest == v.Sources[j].Manifest {
+					if v.Sources[i].Line == v.Sources[j].Line {
+						return v.Sources[i].Column < v.Sources[j].Column
+					}
+					return v.Sources[i].Line < v.Sources[j].Line
+				}
+				return v.Sources[i].Manifest < v.Sources[j].Manifest
+			})
 			l.items = append(l.items, v)
 		}
 	})

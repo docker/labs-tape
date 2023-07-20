@@ -58,15 +58,7 @@ func makeImageScannerTest(tc testdata.TestCase) func(t *testing.T) {
 			}
 			expected.Dedup()
 			for _, expectedImage := range expected.Items() {
-				if len(expectedImage.Sources) == 0 {
-					g.Expect(images.Items()).To(ContainElement(expectedImage))
-				} else {
-					for _, image := range images.Items() {
-						if image.Ref(true) == expectedImage.Ref(true) {
-							g.Expect(image.Sources).To(ConsistOf(expectedImage.Sources))
-						}
-					}
-				}
+				g.Expect(images.Items()).To(ContainElement(expectedImage))
 			}
 		}
 		for _, image := range images.Items() {
