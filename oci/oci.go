@@ -14,12 +14,12 @@ import (
 )
 
 type (
-	Metadata  = ociclient.Metadata
-	MediaType = typesv1.MediaType
-	Platform  = v1.Platform
-	Hash      = v1.Hash
-
-	Client struct {
+	Metadata   = ociclient.Metadata
+	MediaType  = typesv1.MediaType
+	Platform   = v1.Platform
+	Hash       = v1.Hash
+	Descriptor = v1.Descriptor
+	Client     struct {
 		*ociclient.Client
 	}
 )

@@ -7,10 +7,11 @@ import (
 )
 
 type TestCase struct {
-	Description string
-	Directory   string
-	Manifests   []string
-	Expected    []types.Image
+	Description    string
+	Directory      string
+	Manifests      []string
+	NumRelatedTags int
+	Expected       []types.Image
 }
 
 type TestCases []TestCase
@@ -107,6 +108,7 @@ var baseYAMLCases = []TestCase{
 			"04-gatewayclass.yaml",
 			"kustomization.yaml",
 		},
+		NumRelatedTags: 0,
 		Expected: []types.Image{
 			{
 				Source: &types.Source{
@@ -187,6 +189,7 @@ var baseYAMLCases = []TestCase{
 			"flux.yaml",
 			"kustomization.yaml",
 		},
+		NumRelatedTags: 2,
 		Expected: []types.Image{
 			{
 				Source: &types.Source{
@@ -229,6 +232,7 @@ var baseYAMLCases = []TestCase{
 			"webhooks/tekton-mutating-webhooks.yaml",
 			"webhooks/tekton-validating-webhooks.yaml",
 		},
+		NumRelatedTags: 6,
 		Expected: []types.Image{
 			{
 				Source: &types.Source{

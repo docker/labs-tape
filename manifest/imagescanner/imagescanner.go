@@ -9,7 +9,7 @@ import (
 
 	"crypto/sha256"
 
-	"sigs.k8s.io/kustomize/api/image"
+	kimage "sigs.k8s.io/kustomize/api/image"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 
 	"github.com/docker/labs-brown-tape/manifest/types"
@@ -73,8 +73,7 @@ func (s *DefaultImageScanner) GetImages() *types.ImageList {
 	images := types.NewImageList(s.directory)
 	for _, v := range s.trackers {
 		for _, vv := range v.SetValueArgs() {
-
-			name, tag, digest := image.Split(vv.Value)
+			name, tag, digest := kimage.Split(vv.Value)
 			images.Append(types.Image{
 				Source: &types.Source{
 					ImageSourceLocation: types.ImageSourceLocation{

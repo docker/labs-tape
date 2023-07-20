@@ -10,6 +10,7 @@ import (
 	"github.com/docker/labs-brown-tape/manifest/imagescanner"
 	"github.com/docker/labs-brown-tape/manifest/loader"
 	"github.com/docker/labs-brown-tape/manifest/testdata"
+	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
 func TestImageResover(t *testing.T) {
@@ -37,12 +38,39 @@ func makeImageResolverTest(tc testdata.TestCase) func(t *testing.T) {
 
 		images := scanner.GetImages()
 		// TODO: should this use fake resolver to avoid network traffic?
-		g.Expect(NewRegistryResolver(nil).ResolveDigests(ctx, images)).To(Succeed())
+		resolver := NewRegistryResolver(nil)
+		g.Expect(resolver.ResolveDigests(ctx, images)).To(Succeed())
 
 		if tc.Expected != nil {
 			g.Expect(images.Items()).To(ConsistOf(tc.Expected))
 		} else {
 			t.Logf("%#v\n", images)
+		}
+
+		g.Expect(images.Dedup()).To(Succeed())
+		related, err := resolver.FindRelatedTags(ctx, images)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		g.Expect(related.Items()).To(HaveLen(tc.NumRelatedTags))
+		if tc.NumRelatedTags > 0 {
+			for _, image := range images.Items() {
+				// TODO: this is very naive, need more concerte assertions
+				relatedTo := related.RelatedTo(image.Digest)
+				g.Expect(relatedTo).ToNot(BeEmpty())
+			}
+		}
+		if tc.Expected != nil {
+			g.Expect(images.Len()).To(BeNumerically("<=", len(tc.Expected)))
+			expected := types.NewImageList(tc.Directory)
+			expected.Append(tc.Expected...)
+			g.Expect(expected.Dedup()).To(Succeed())
+			for _, expectedImage := range expected.Items() {
+				g.Expect(images.Items()).To(ContainElement(expectedImage))
+			}
+		}
+		for _, image := range images.Items() {
+			g.Expect(image.Source).To(BeNil())
+			g.Expect(image.Sources).ToNot(BeEmpty())
 		}
 	}
 }

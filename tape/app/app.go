@@ -11,11 +11,11 @@ import (
 	"os/signal"
 	"strings"
 
+	"github.com/in-toto/in-toto-golang/in_toto"
 	flags "github.com/thought-machine/go-flags"
 
 	"github.com/docker/staples/pkg/logger"
 
-	"github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 
@@ -146,8 +146,6 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 	images := scanner.GetImages()
 	c.tape.log.Debugf("found images: %#v", images.Items())
 
-	images.Dedup()
-
 	client := oci.NewClient(nil)
 	// TODO: use client.LoginWithCredentials() and/or other options
 	// TODO: integrate with docker-credential-helpers
@@ -174,7 +172,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 		ExternalSBOMs,
 		InlineSignatures, // TODO: implement
 		ExternalSignatures map[string]document
-		Related             map[string][]oci.Metadata
+		Related             map[string]*types.ImageList
 		RelatedUnclassified []string
 		Manifests           []imageManifest
 	}
@@ -189,14 +187,16 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 	}
 
 	c.tape.log.Info("resolving image digests")
-
-	if err := imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images); err != nil {
+	resolver := imageresolver.NewRegistryResolver(client)
+	if err := resolver.ResolveDigests(ctx, images); err != nil {
 		return fmt.Errorf("failed to resolve image digests: %w", err)
 	}
 
-	// TODO: avoid calling client.ListRelated() over and over for the same image
+	images.Dedup()
+
 	// TODO: improve JSON formatter
 	// TODO: attestation formatter
+	// TODO: add test for the the CLI functionality, as fetching related tags is not covered by package tests
 	// TODO: include info about signatures
 	// TODO: include references to manifests where image is used
 
@@ -212,78 +212,86 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 			ExternalSBOMs:        map[string]document{},
 			InlineSignatures:     map[string]document{},
 			ExternalSignatures:   map[string]document{},
-			Related:              map[string][]oci.Metadata{},
+			Related:              map[string]*types.ImageList{},
 		}
 	}
 
-	for _, image := range images.Items() {
+	c.tape.log.Info("resolving related images")
+
+	related, err := resolver.FindRelatedTags(ctx, images)
+	if err != nil {
+		return fmt.Errorf("failed to find related tags: %w", err)
+	}
+
+	c.tape.log.Debugf("related images: %#v", related.Items())
+
+	inspectManifest := func(image *types.Image, manifest oci.Descriptor) error {
 		info := outputInfo[image.Ref(true)]
 
-		index, err := client.Index(ctx, info.Ref)
-		if err != nil {
-			return fmt.Errorf("failed to get index for %s: %w", info.Ref, err)
-		}
-
-		related, err := client.ListRelated(ctx, image.OriginalName, image.Digest)
-		if err != nil {
-			return fmt.Errorf("failed to list related tag for %s: %w", info.Ref, err)
-		}
-
-		if len(related) > 0 {
-			info.Related[image.Digest] = append(info.Related[image.Digest], related...)
-		}
-
-		for _, manifest := range index.Manifests {
-			info.Manifests = append(info.Manifests, imageManifest{
-				Digest:      manifest.Digest,
-				MediaType:   manifest.MediaType,
-				Platform:    manifest.Platform,
-				Size:        manifest.Size,
-				Annotations: manifest.Annotations,
-			})
-			digest := manifest.Digest.String()
-			if v, ok := manifest.Annotations["vnd.docker.reference.type"]; ok && v == "attestation-manifest" {
-				subject, ok := manifest.Annotations["vnd.docker.reference.digest"]
-				if !ok {
-					return fmt.Errorf("attestation manifest %s does not have 'vnd.docker.reference.digest' annotation", digest)
-				}
-
-				ref := image.OriginalName + "@" + digest
-				artefact, err := fetchArtefact(ctx, client, ref)
-				if err != nil {
-					return fmt.Errorf("failed to fetch inline attestation: %w", err)
-				}
-
-				if artefact.MediaType != "application/vnd.in-toto+json" {
-					return fmt.Errorf("unexpected media type of attestation in %q: %s", ref, artefact.MediaType)
-				}
-
-				doc := document{
-					MediaType: string(artefact.MediaType),
-					Object:    &in_toto.Statement{},
-				}
-
-				if err := json.NewDecoder(artefact).Decode(doc.Object); err != nil {
-					return fmt.Errorf("failed to unmarshal attestation: %w", err)
-				}
-
-				info.InlineAttestations[subject] = doc
+		info.Manifests = append(info.Manifests, imageManifest{
+			Digest:      manifest.Digest,
+			MediaType:   manifest.MediaType,
+			Platform:    manifest.Platform,
+			Size:        manifest.Size,
+			Annotations: manifest.Annotations,
+		})
+		digest := manifest.Digest.String()
+		if v, ok := manifest.Annotations["vnd.docker.reference.type"]; ok && v == "attestation-manifest" {
+			subject, ok := manifest.Annotations["vnd.docker.reference.digest"]
+			if !ok {
+				return fmt.Errorf("attestation manifest %s does not have 'vnd.docker.reference.digest' annotation", digest)
 			}
 
-			related, err := client.ListRelated(ctx, image.OriginalName, digest)
+			ref := image.OriginalName + "@" + digest
+			artefact, err := fetchArtefact(ctx, client, ref)
 			if err != nil {
-				return fmt.Errorf("failed to list related tag for %s: %w", info.Ref, err)
+				return fmt.Errorf("failed to fetch inline attestation: %w", err)
 			}
-			if len(related) > 0 {
-				info.Related[digest] = append(info.Related[digest], related...)
+
+			if artefact.MediaType != "application/vnd.in-toto+json" {
+				return fmt.Errorf("unexpected media type of attestation in %q: %s", ref, artefact.MediaType)
+			}
+
+			doc := document{
+				MediaType: string(artefact.MediaType),
+				Object:    &in_toto.Statement{},
+			}
+
+			if err := json.NewDecoder(artefact).Decode(doc.Object); err != nil {
+				return fmt.Errorf("failed to unmarshal attestation: %w", err)
+			}
+
+			info.InlineAttestations[subject] = doc
+		}
+
+		outputInfo[image.Ref(true)] = info
+		return nil
+	}
+
+	manifests, relatedToManifests, err := resolver.FindRelatedFromIndecies(ctx, images, inspectManifest)
+	if err != nil {
+		return err
+	}
+
+	for _, image := range images.Items() {
+		imageRef := image.Ref(true)
+		info := outputInfo[imageRef]
+
+		if relatedImages := related.CollectRelatedToRef(imageRef); relatedImages.Len() > 0 {
+			info.Related[imageRef] = relatedImages
+		}
+
+		for _, manifestRef := range manifests.RelatedTo(imageRef) {
+			if relatedImages := relatedToManifests.CollectRelatedToRef(manifestRef); relatedImages.Len() > 0 {
+				info.Related[manifestRef] = relatedImages
 			}
 		}
 
 		for _, related := range info.Related {
-			for _, metadata := range related {
-				ref := metadata.URL + "@" + metadata.Digest
+			for _, relatedImage := range related.Items() {
+				ref := relatedImage.Ref(true)
 				switch {
-				case strings.HasSuffix(metadata.URL, ".att"):
+				case strings.HasSuffix(relatedImage.OriginalTag, ".att"):
 					artefact, err := fetchArtefact(ctx, client, ref)
 					if err != nil {
 						return fmt.Errorf("failed to fetch external attestation: %w", err)
@@ -303,7 +311,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 					}
 
 					info.ExternalAttestations[ref] = doc
-				case strings.HasSuffix(metadata.URL, ".sbom"):
+				case strings.HasSuffix(relatedImage.OriginalTag, ".sbom"):
 					artefact, err := fetchArtefact(ctx, client, ref)
 					if err != nil {
 						return fmt.Errorf("failed to fetch external attestation: %w", err)
@@ -330,7 +338,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 					}
 
 					info.ExternalSBOMs[ref] = doc
-				case strings.HasSuffix(metadata.URL, ".sig"):
+				case strings.HasSuffix(relatedImage.OriginalTag, ".sig"):
 					artefact, err := fetchArtefact(ctx, client, ref)
 					if err != nil {
 						return fmt.Errorf("failed to fetch external signature: %w", err)
@@ -421,7 +429,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 			}
 		}
 
-		outputInfo[image.Ref(true)] = info
+		outputInfo[imageRef] = info
 	}
 
 	stdj := json.NewEncoder(os.Stdout)
@@ -467,9 +475,9 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 
 			if len(info.Related) > 0 {
 				fmt.Printf("  Related tags:\n")
-				for _, related := range info.Related {
-					for _, metadata := range related {
-						fmt.Printf("    %s  %s\n", metadata.Digest, metadata.URL)
+				for relatedTo, related := range info.Related {
+					for _, relatedImage := range related.Items() {
+						fmt.Printf("   %s  %s\n", relatedTo, relatedImage.Ref(true))
 					}
 				}
 			}

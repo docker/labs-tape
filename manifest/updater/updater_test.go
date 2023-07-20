@@ -80,13 +80,9 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 			expected := &types.ImageList{}
 			matched := &types.ImageList{}
 
-			for _, image := range scanner.GetImages().Items() {
-				images.Append(image)
-			}
+			images.Append(scanner.GetImages().Items()...)
 
-			for i := range tc.Expected {
-				expected.Append(tc.Expected[i])
-			}
+			expected.Append(tc.Expected...)
 
 			imagesGroups := images.GroupByManifest()
 			expectedGroups := expected.GroupByManifest()
