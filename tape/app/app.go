@@ -157,6 +157,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 		MediaType   oci.MediaType
 		Platform    *oci.Platform
 		Annotations map[string]string
+		Size        int64
 	}
 	type document struct {
 		MediaType string
@@ -193,14 +194,11 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 		return fmt.Errorf("failed to resolve image digests: %w", err)
 	}
 
-	// TODO: separate business logic from presentation
 	// TODO: avoid calling client.ListRelated() over and over for the same image
-	// TODO: simple JSON formatter, as well as attestation formatter
-	// TODO: proper table/tree formatter
+	// TODO: improve JSON formatter
+	// TODO: attestation formatter
 	// TODO: include info about signatures
 	// TODO: include references to manifests where image is used
-	// TODO: attempt call `cosign download signature` and find out who signed the image
-	// TODO: get OCI annotations, artefact manifest, attestation manifest and platforms
 
 	for _, image := range images.Items() {
 		_, digestProvided := withDigests[image.Digest]
@@ -226,28 +224,23 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 			return fmt.Errorf("failed to get index for %s: %w", info.Ref, err)
 		}
 
-		//occurrances := len(image.Sources)
-		//fmt.Printf("%s\t(digestProvided=%v occurrances=%d)\n", ref, !digestResolved, occurrances)
-
 		related, err := client.ListRelated(ctx, image.OriginalName, image.Digest)
 		if err != nil {
 			return fmt.Errorf("failed to list related tag for %s: %w", info.Ref, err)
 		}
 
-		info.Related[image.Digest] = append(info.Related[image.Digest], related...)
+		if len(related) > 0 {
+			info.Related[image.Digest] = append(info.Related[image.Digest], related...)
+		}
 
 		for _, manifest := range index.Manifests {
 			info.Manifests = append(info.Manifests, imageManifest{
 				Digest:      manifest.Digest,
 				MediaType:   manifest.MediaType,
 				Platform:    manifest.Platform,
+				Size:        manifest.Size,
 				Annotations: manifest.Annotations,
 			})
-			// fmt.Printf("\t%s\t%s\t%s\n", manifest.Digest, manifest.MediaType, manifest.Platform.String())
-			// for k, v := range manifest.Annotations {
-			// 	fmt.Printf("\t\t%s=%s\n", k, v)
-			// }
-
 			digest := manifest.Digest.String()
 			if v, ok := manifest.Annotations["vnd.docker.reference.type"]; ok && v == "attestation-manifest" {
 				subject, ok := manifest.Annotations["vnd.docker.reference.digest"]
@@ -281,8 +274,9 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 			if err != nil {
 				return fmt.Errorf("failed to list related tag for %s: %w", info.Ref, err)
 			}
-
-			info.Related[digest] = append(info.Related[digest], related...)
+			if len(related) > 0 {
+				info.Related[digest] = append(info.Related[digest], related...)
+			}
 		}
 
 		for _, related := range info.Related {
@@ -350,6 +344,10 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 					if !hasCosignBundle {
 						c.tape.log.Debugf("signature %q doesn't have bundle annotation", ref)
 						c.tape.log.Debugf("signature %q annotations %#v", ref, artefact.Annotations)
+						info.ExternalSignatures[ref] = document{
+							MediaType: "application/vnd.com.docker.signinfo.v1alpha1", // TODO: define this as a constant
+							Object:    nil,
+						}
 						break
 					}
 
@@ -409,16 +407,14 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 						SubjectAlternativeNames [][]string
 					}{}
 
-					doc := document{
-						MediaType: "application/vnd.com.docker.signinfo.v1alpha1", // TODO: define this as a constant
-						Object:    certificiatesInfo,
-					}
-
 					for i := range certificates {
 						certificiatesInfo.SubjectAlternativeNames = append(certificiatesInfo.SubjectAlternativeNames, cryptoutils.GetSubjectAlternateNames(certificates[i]))
 					}
 
-					info.ExternalSignatures[ref] = doc
+					info.ExternalSignatures[ref] = document{
+						MediaType: "application/vnd.com.docker.signinfo.v1alpha1", // TODO: define this as a constant
+						Object:    certificiatesInfo,
+					}
 				default:
 					info.RelatedUnclassified = append(info.RelatedUnclassified, ref)
 				}
@@ -428,15 +424,16 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 		outputInfo[image.Ref(true)] = info
 	}
 
+	stdj := json.NewEncoder(os.Stdout)
+
 	for _, info := range outputInfo {
 		switch c.tape.OutputFormat {
 		case OutputFormatDirectJSON:
-			encoder := json.NewEncoder(os.Stdout)
-			encoder.SetIndent("", "  ")
-			if err := encoder.Encode(info); err != nil {
+			stdj.SetIndent("", "  ")
+			if err := stdj.Encode(info); err != nil {
 				return fmt.Errorf("failed to marshal output: %w", err)
 			}
-		case OutputFormatText:
+		case OutputFormatText, OutputFormatDetailedText:
 			// TODO: make this a method of the struct, perhaps use a tag for description
 			fmt.Printf("%s\n", info.Ref)
 			fmt.Printf("  Sources:\n")
@@ -446,20 +443,64 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 			fmt.Printf("  Digest provided: %v\n", info.DigestProvided)
 
 			if len(info.Manifests) > 0 {
-				fmt.Printf("  Manifests:\n")
+				fmt.Printf("  OCI manifests:\n")
 				for _, manifest := range info.Manifests {
-					fmt.Printf("    %s  %s  %s\n", manifest.Digest, manifest.MediaType, manifest.Platform.String())
+					fmt.Printf("    %s  %s  %s  %d\n", manifest.Digest, manifest.MediaType, manifest.Platform.String(), manifest.Size)
 				}
 			}
 
-			fmt.Printf("  Related: %d\n", len(info.Related))
-			fmt.Printf("  Inline attestations: %d\n", len(info.InlineAttestations))
-			fmt.Printf("  External attestations: %d\n", len(info.ExternalAttestations))
-			fmt.Printf("  Inline SBOMs: %d\n", len(info.InlineSBOMs))
-			fmt.Printf("  External SBOMs: %d\n", len(info.ExternalSBOMs))
-			fmt.Printf("  Inline signatures: %d\n", len(info.InlineSignatures))
-			fmt.Printf("  External signatures: %d\n", len(info.ExternalSignatures))
-			fmt.Printf("  Unclassified related tags: %d\n", len(info.RelatedUnclassified))
+			docsets := map[string]map[string]document{
+				"Inline attestations":   info.InlineAttestations,
+				"External attestations": info.ExternalAttestations,
+				"Inline SBOMs":          info.InlineSBOMs,
+				"External SBOMs":        info.ExternalSBOMs,
+				"Inline signatures":     info.InlineSignatures,
+				"External signatures":   info.ExternalSignatures,
+			}
+
+			if c.tape.OutputFormat == OutputFormatText {
+				for desc, docset := range docsets {
+					fmt.Printf("  %s: %d\n", desc, len(docset))
+				}
+				break
+			}
+
+			if len(info.Related) > 0 {
+				fmt.Printf("  Related tags:\n")
+				for _, related := range info.Related {
+					for _, metadata := range related {
+						fmt.Printf("    %s  %s\n", metadata.Digest, metadata.URL)
+					}
+				}
+			}
+			if len(info.RelatedUnclassified) > 0 {
+				fmt.Printf("  Related unclassified:\n")
+				for _, ref := range info.RelatedUnclassified {
+					fmt.Printf("    %s\n", ref)
+				}
+			}
+			for desc, docset := range docsets {
+				if len(docset) == 0 {
+					fmt.Printf("  %s: <none>\n", desc)
+				} else {
+					fmt.Printf("  %s:\n", desc)
+				}
+				for subject, doc := range docset {
+					if doc.Object == nil && len(doc.Data) == 0 {
+						fmt.Printf("    %s %s: <none>\n", subject, doc.MediaType)
+					}
+					if doc.Object != nil {
+						fmt.Printf("    %s %s:\n        ", subject, doc.MediaType)
+						stdj.SetIndent("        ", "  ")
+						if err := stdj.Encode(doc.Object); err != nil {
+							return fmt.Errorf("failed to marshal output: %w", err)
+						}
+					}
+					if len(doc.Data) > 0 {
+						fmt.Printf("    %s %s: %s\n", subject, doc.MediaType, base64.RawStdEncoding.EncodeToString(doc.Data))
+					}
+				}
+			}
 		default:
 			return fmt.Errorf("unsupported output format: %s", c.tape.OutputFormat)
 		}
