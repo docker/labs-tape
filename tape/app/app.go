@@ -20,15 +20,15 @@ const (
 )
 
 type TapeCommand struct {
-	LogLevel     string       `long:"log-level" description:"Log level" default:"info"`
-	OutputFormat OutputFormat `long:"output-format" description:"Format of the output to use" default:"detailed-text"`
+	LogLevel     string       `short:"l" long:"log-level" description:"Log level" default:"info"`
+	OutputFormat OutputFormat `short:"o" long:"output-format" description:"Format of the output to use" default:"detailed-text"`
 
 	log *logger.Logger
 	ctx context.Context
 }
 
 type CommonOptions struct {
-	ManifestDir string `short:"d" long:"manifest-dir" description:"directory containing manifests" required:"true"`
+	ManifestDir string `short:"D" long:"manifest-dir" description:"Directory containing manifests" required:"true"`
 
 	tape *TapeCommand
 }
