@@ -11,7 +11,7 @@ import (
 )
 
 type ImageCopier interface {
-	CopyImages(context.Context, *types.ImageList) error
+	CopyImages(context.Context, ...*types.ImageList) error
 }
 
 type RegistryCopier struct {
@@ -32,12 +32,14 @@ func NewRegistryCopier(client *oci.Client, destinationRef string) ImageCopier {
 	}
 }
 
-func (c *RegistryCopier) CopyImages(ctx context.Context, images *types.ImageList) error {
-	SetNewImageRefs(c.DestinationRef, c.hash, images.Items())
-	for _, image := range images.Items() {
-		newRef := image.NewName + ":" + image.NewTag
-		if err := c.Copy(ctx, image.Ref(true), newRef, image.Digest); err != nil {
-			return err
+func (c *RegistryCopier) CopyImages(ctx context.Context, lists ...*types.ImageList) error {
+	for _, images := range lists {
+		SetNewImageRefs(c.DestinationRef, c.hash, images.Items())
+		for _, image := range images.Items() {
+			newRef := image.NewName + ":" + image.NewTag
+			if err := c.Copy(ctx, image.Ref(true), newRef, image.Digest); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -51,6 +53,11 @@ func SetNewImageRefs(destinationRef string, hash hash.Hash, images []types.Image
 
 func doSetNewImageRef(destinationRef string, hash hash.Hash, i *types.Image) {
 	i.NewName = destinationRef
+
+	if oci.IsCosignArtifact(i.OriginalTag) {
+		i.NewTag = i.OriginalTag // preserve tag of cosign artefact
+		return
+	}
 
 	hash.Reset()
 	_, _ = hash.Write([]byte(i.OriginalName + ":" + i.OriginalTag))

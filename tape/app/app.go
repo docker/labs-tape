@@ -48,7 +48,7 @@ func Run() int {
 		name    string
 		short   string
 		long    []string
-		options interface{}
+		options flags.Commander
 	}{
 		{
 			name:  "images",
@@ -58,6 +58,17 @@ func Run() int {
 				"in the given set of manifests, inspect metadata and digests",
 			},
 			options: &TapeImagesCommand{
+				CommonOptions: CommonOptions{tape: tape},
+			},
+		},
+		{
+			name:  "package",
+			short: "Create a package",
+			long: []string{
+				"This command can be used to package app images and configuration",
+				"as a single self-contained artefact",
+			},
+			options: &TapePackageCommand{
 				CommonOptions: CommonOptions{tape: tape},
 			},
 		},

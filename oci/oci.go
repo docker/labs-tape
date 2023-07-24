@@ -125,3 +125,7 @@ func (c *Client) GetArtefact(ctx context.Context, ref string) (*ArtefactInfo, er
 
 	return info, nil
 }
+
+func IsCosignArtifact(ref string) bool {
+	return ociclient.IsCosignArtifact(ref)
+}

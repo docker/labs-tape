@@ -76,5 +76,7 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 		_, err := NewDefaultPackager(client, makeDestination(tc.Description)).Push(ctx, images.Dir())
 		g.Expect(err).To(Succeed())
 
+		// TODO: pull the contents from the registry and compare them to what is expected;
+		// e.g. also as the means to test inspection logic (TBI)
 	}
 }

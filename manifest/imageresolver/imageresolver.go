@@ -101,8 +101,10 @@ func (c *RegistryResolver) FindRelatedFromIndecies(ctx context.Context, images *
 		}
 		for i := range index.Manifests {
 			manifest := index.Manifests[i]
-			if err := inspect(&image, manifest); err != nil {
-				return nil, nil, err
+			if inspect != nil {
+				if err := inspect(&image, manifest); err != nil {
+					return nil, nil, err
+				}
 			}
 			err := manifests.AppendWithRelationTo(image, types.Image{
 				Source: &types.Source{
