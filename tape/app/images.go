@@ -26,6 +26,35 @@ type TapeImagesCommand struct {
 	CommonOptions
 }
 
+type imageManifest struct {
+	Digest      oci.Hash
+	MediaType   oci.MediaType
+	Platform    *oci.Platform
+	Annotations map[string]string
+	Size        int64
+}
+
+type document struct {
+	MediaType string
+	Data      []byte
+	Object    any
+}
+
+type imageInfo struct {
+	Ref            string
+	DigestProvided bool
+	Sources        []types.Source
+	InlineAttestations,
+	ExternalAttestations,
+	InlineSBOMs, // TODO: implement
+	ExternalSBOMs,
+	InlineSignatures, // TODO: implement
+	ExternalSignatures map[string]document
+	Related             map[string]*types.ImageList
+	RelatedUnclassified []string
+	Manifests           []imageManifest
+}
+
 func (c *TapeImagesCommand) Execute(args []string) error {
 	ctx := context.WithValue(c.tape.ctx, "command", "images")
 	if len(args) != 0 {
@@ -55,33 +84,21 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 	// TODO: use client.LoginWithCredentials() and/or other options
 	// TODO: integrate with docker-credential-helpers
 
-	type imageManifest struct {
-		Digest      oci.Hash
-		MediaType   oci.MediaType
-		Platform    *oci.Platform
-		Annotations map[string]string
-		Size        int64
-	}
-	type document struct {
-		MediaType string
-		Data      []byte
-		Object    any
-	}
-	type imageInfo struct {
-		Ref            string
-		DigestProvided bool
-		Sources        []types.Source
-		InlineAttestations,
-		ExternalAttestations,
-		InlineSBOMs, // TODO: implement
-		ExternalSBOMs,
-		InlineSignatures, // TODO: implement
-		ExternalSignatures map[string]document
-		Related             map[string]*types.ImageList
-		RelatedUnclassified []string
-		Manifests           []imageManifest
+	resolver := imageresolver.NewRegistryResolver(client)
+
+	outputInfo, err := c.CollectInfo(ctx, images, client, resolver)
+	if err != nil {
+		return fmt.Errorf("failed to collect info about images: %w", err)
 	}
 
+	if err := c.PrintInfo(ctx, outputInfo); err != nil {
+		return fmt.Errorf("failed to print info about images: %w", err)
+	}
+
+	return nil
+}
+
+func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.ImageList, client *oci.Client, resolver imageresolver.Resolver) (map[string]imageInfo, error) {
 	outputInfo := make(map[string]imageInfo, len(images.Items()))
 
 	withDigests := map[string]struct{}{}
@@ -92,9 +109,8 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 	}
 
 	c.tape.log.Info("resolving image digests")
-	resolver := imageresolver.NewRegistryResolver(client)
 	if err := resolver.ResolveDigests(ctx, images); err != nil {
-		return fmt.Errorf("failed to resolve image digests: %w", err)
+		return nil, fmt.Errorf("failed to resolve image digests: %w", err)
 	}
 
 	images.Dedup()
@@ -125,7 +141,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 
 	related, err := resolver.FindRelatedTags(ctx, images)
 	if err != nil {
-		return fmt.Errorf("failed to find related tags: %w", err)
+		return nil, fmt.Errorf("failed to find related tags: %w", err)
 	}
 
 	c.tape.log.Debugf("related images: %#v", related.Items())
@@ -175,7 +191,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 
 	manifests, relatedToManifests, err := resolver.FindRelatedFromIndecies(ctx, images, inspectManifest)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, image := range images.Items() {
@@ -199,11 +215,11 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 				case strings.HasSuffix(relatedImage.OriginalTag, ".att"):
 					artefact, err := client.GetArtefact(ctx, ref)
 					if err != nil {
-						return fmt.Errorf("failed to fetch external attestation: %w", err)
+						return nil, fmt.Errorf("failed to fetch external attestation: %w", err)
 					}
 
 					if artefact.MediaType != "application/vnd.dsse.envelope.v1+json" {
-						return fmt.Errorf("unexpected media type of attestation in %q: %s", ref, artefact.MediaType)
+						return nil, fmt.Errorf("unexpected media type of attestation in %q: %s", ref, artefact.MediaType)
 					}
 
 					doc := document{
@@ -212,14 +228,14 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 					}
 
 					if err := json.NewDecoder(artefact).Decode(doc.Object); err != nil {
-						return fmt.Errorf("failed to unmarshal attestation: %w", err)
+						return nil, fmt.Errorf("failed to unmarshal attestation: %w", err)
 					}
 
 					info.ExternalAttestations[ref] = doc
 				case strings.HasSuffix(relatedImage.OriginalTag, ".sbom"):
 					artefact, err := client.GetArtefact(ctx, ref)
 					if err != nil {
-						return fmt.Errorf("failed to fetch external attestation: %w", err)
+						return nil, fmt.Errorf("failed to fetch external attestation: %w", err)
 					}
 
 					decoder := interface {
@@ -230,7 +246,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 					case "spdx+json":
 						decoder = json.NewDecoder(artefact)
 					default:
-						return fmt.Errorf("unexpected media type of SBOM in %q: %s", ref, artefact.MediaType)
+						return nil, fmt.Errorf("unexpected media type of SBOM in %q: %s", ref, artefact.MediaType)
 					}
 
 					doc := document{
@@ -239,18 +255,18 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 					}
 
 					if decoder.Decode(&doc.Object) != nil {
-						return fmt.Errorf("failed to unmarshal SBOM: %w", err)
+						return nil, fmt.Errorf("failed to unmarshal SBOM: %w", err)
 					}
 
 					info.ExternalSBOMs[ref] = doc
 				case strings.HasSuffix(relatedImage.OriginalTag, ".sig"):
 					artefact, err := client.GetArtefact(ctx, ref)
 					if err != nil {
-						return fmt.Errorf("failed to fetch external signature: %w", err)
+						return nil, fmt.Errorf("failed to fetch external signature: %w", err)
 					}
 
 					if artefact.MediaType != "application/vnd.dev.cosign.simplesigning.v1+json" {
-						return fmt.Errorf("unexpected media type of signature in %q: %s", ref, artefact.MediaType)
+						return nil, fmt.Errorf("unexpected media type of signature in %q: %s", ref, artefact.MediaType)
 					}
 
 					cosignBundleData, hasCosignBundle := artefact.Annotations["dev.sigstore.cosign/bundle"]
@@ -275,7 +291,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 					}{}
 
 					if err := json.NewDecoder(strings.NewReader(cosignBundleData)).Decode(bundleObj); err != nil {
-						return fmt.Errorf("failed to unmarshal signature bundle: %w", err)
+						return nil, fmt.Errorf("failed to unmarshal signature bundle: %w", err)
 					}
 
 					hashedRekord := &struct {
@@ -298,21 +314,21 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 					}{}
 
 					if err := json.NewDecoder(newBase64Decoder(bundleObj.Payload.Body)).Decode(hashedRekord); err != nil {
-						return fmt.Errorf("failed to unmarshal signature bundle: %w", err)
+						return nil, fmt.Errorf("failed to unmarshal signature bundle: %w", err)
 					}
 					if hashedRekord.Kind != "hashedrekord" &&
 						hashedRekord.APIVersion != "0.0.1" {
-						return fmt.Errorf("unexpected signature bundle version and kind: %s/%s", hashedRekord.Kind, hashedRekord.APIVersion)
+						return nil, fmt.Errorf("unexpected signature bundle version and kind: %s/%s", hashedRekord.Kind, hashedRekord.APIVersion)
 					}
 
 					publicKeyPEM := bytes.NewBuffer(nil)
 					_, err = io.Copy(publicKeyPEM, newBase64Decoder(hashedRekord.Spec.Signature.PublicKey.Content))
 					if err != nil {
-						return fmt.Errorf("failed to decode PEM signature bundle: %w", err)
+						return nil, fmt.Errorf("failed to decode PEM signature bundle: %w", err)
 					}
 					certificates, err := cryptoutils.LoadCertificatesFromPEM(publicKeyPEM)
 					if err != nil {
-						return fmt.Errorf("failed to load certificates from PEM signature bundle: %w", err)
+						return nil, fmt.Errorf("failed to load certificates from PEM signature bundle: %w", err)
 					}
 
 					certificiatesInfo := struct {
@@ -336,7 +352,10 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 
 		outputInfo[imageRef] = info
 	}
+	return outputInfo, nil
+}
 
+func (c *TapeImagesCommand) PrintInfo(ctx context.Context, outputInfo map[string]imageInfo) error {
 	stdj := json.NewEncoder(os.Stdout)
 
 	for _, info := range outputInfo {
