@@ -113,7 +113,9 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 		return nil, fmt.Errorf("failed to resolve image digests: %w", err)
 	}
 
-	images.Dedup()
+	if err := images.Dedup(); err != nil {
+		return nil, fmt.Errorf("failed to dedup images: %w", err)
+	}
 
 	// TODO: improve JSON formatter
 	// TODO: attestation formatter
