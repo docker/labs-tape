@@ -11,7 +11,7 @@ import (
 )
 
 type ImageCopier interface {
-	CopyImages(context.Context, ...*types.ImageList) error
+	CopyImages(context.Context, ...*types.ImageList) ([]string, error)
 }
 
 type RegistryCopier struct {
@@ -32,17 +32,19 @@ func NewRegistryCopier(client *oci.Client, destinationRef string) ImageCopier {
 	}
 }
 
-func (c *RegistryCopier) CopyImages(ctx context.Context, lists ...*types.ImageList) error {
+func (c *RegistryCopier) CopyImages(ctx context.Context, lists ...*types.ImageList) ([]string, error) {
+	copiedImages := []string{}
 	for _, images := range lists {
 		SetNewImageRefs(c.DestinationRef, c.hash, images.Items())
 		for _, image := range images.Items() {
 			newRef := image.NewName + ":" + image.NewTag
 			if err := c.Copy(ctx, image.Ref(true), newRef, image.Digest); err != nil {
-				return err
+				return nil, err
 			}
+			copiedImages = append(copiedImages, newRef)
 		}
 	}
-	return nil
+	return copiedImages, nil
 }
 
 func SetNewImageRefs(destinationRef string, hash hash.Hash, images []types.Image) {

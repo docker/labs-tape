@@ -107,10 +107,11 @@ func (c *TapePackageCommand) Execute(args []string) error {
 
 	c.tape.log.Info("copying images")
 
-	// TODO: print a list of of copied image refs
-	if err := copier.CopyImages(ctx, images, related, relatedToManifests); err != nil {
+	imageRefs, err := copier.CopyImages(ctx, images, related, relatedToManifests)
+	if err != nil {
 		return fmt.Errorf("failed to copy images: %w", err)
 	}
+	c.tape.log.Infof("copied images: %s", strings.Join(imageRefs, ", "))
 
 	c.tape.log.Info("updating manifest files")
 

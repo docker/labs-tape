@@ -50,7 +50,13 @@ func makeImageCopierTest(tc testdata.TestCase) func(t *testing.T) {
 		// TODO: should this use fake resolver to avoid network traffic?
 		g.Expect(imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
 
-		g.Expect(NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)).To(Succeed())
+		copied, err := NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)
+		g.Expect(err).ToNot(HaveOccurred())
+		expectToCopyRefs := []string{}
+		for _, image := range images.Items() {
+			expectToCopyRefs = append(expectToCopyRefs, image.Ref(false))
+		}
+		g.Expect(copied).To(ConsistOf(expectToCopyRefs))
 
 		SetNewImageRefs(makeDestination(tc.Description), sha256.New(), tc.Expected)
 
