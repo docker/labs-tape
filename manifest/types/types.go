@@ -16,6 +16,7 @@ const (
 
 type (
 	Image struct {
+		// TODO: are two fields really needed? it would make sense if it was just the slice
 		*Source
 		Sources []Source
 
@@ -196,12 +197,30 @@ func (l *ImageList) Append(i ...Image) {
 
 func (l *ImageList) GroupByManifest() map[string]*ImageList {
 	groups := map[string]*ImageList{}
-	for i := range l.items {
-		p := filepath.Join(l.dir, l.items[i].Manifest)
+	addItem := func(manifest string, item Image) {
+		p := filepath.Join(l.dir, manifest)
 		if _, ok := groups[p]; !ok {
 			groups[p] = NewImageList(l.dir)
 		}
-		groups[p].Append(l.items[i])
+		groups[p].Append(item)
+	}
+	for i := range l.items {
+		item := l.items[i]
+		if item.Source != nil {
+			addItem(item.Source.Manifest, item)
+		}
+		if len(item.Sources) > 0 {
+			for _, source := range item.Sources {
+				addItem(source.Manifest, Image{
+					Sources:      []Source{source},
+					OriginalName: item.OriginalName,
+					OriginalTag:  item.OriginalTag,
+					Digest:       item.Digest,
+					NewName:      item.NewName,
+					NewTag:       item.NewTag,
+				})
+			}
+		}
 	}
 	return groups
 }

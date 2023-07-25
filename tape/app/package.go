@@ -90,6 +90,10 @@ func (c *TapePackageCommand) Execute(args []string) error {
 		return fmt.Errorf("failed to resolve digests: %w", err)
 	}
 
+	if err := images.Dedup(); err != nil {
+		return fmt.Errorf("failed to dedup images: %w", err)
+	}
+
 	c.tape.log.Info("resolving related images")
 	related, err := resolver.FindRelatedTags(ctx, images)
 	if err != nil {
@@ -107,6 +111,8 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	if err := copier.CopyImages(ctx, images, related, relatedToManifests); err != nil {
 		return fmt.Errorf("failed to copy images: %w", err)
 	}
+
+	c.tape.log.Info("updating manifest files")
 
 	updater := updater.NewFileUpdater()
 	if err := updater.Update(images); err != nil {
