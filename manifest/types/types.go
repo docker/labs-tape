@@ -15,9 +15,6 @@ const (
 )
 
 type (
-	// TODO: this is not optimal as resolution and copying ends up being done for each item,
-	// and those can be repeated a few times;  the structure should evolve so that there is
-	// a unique entry with references to multiple origins
 	Image struct {
 		*Source
 		Sources []Source
