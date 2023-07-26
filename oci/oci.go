@@ -14,6 +14,8 @@ import (
 	// OCIv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+const UserAgent = "tape/v1"
+
 type (
 	Metadata   = ociclient.Metadata
 	MediaType  = typesv1.MediaType
@@ -26,7 +28,18 @@ type (
 )
 
 func NewClient(opts []crane.Option) *Client {
-	return &Client{Client: ociclient.NewClient(opts)}
+	options := []crane.Option{
+		crane.WithUserAgent(UserAgent),
+		crane.WithPlatform(&v1.Platform{
+			Architecture: "unknown",
+			OS:           "unknown",
+		}),
+	}
+	options = append(options, opts...)
+
+	return &Client{
+		Client: ociclient.NewClient(options),
+	}
 }
 
 func (c *Client) withContext(ctx context.Context) []crane.Option {
