@@ -2,19 +2,20 @@ package oci
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/fluxcd/pkg/oci"
+	ociclient "github.com/fluxcd/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/google/go-containerregistry/pkg/v1/types"
+	typesv1 "github.com/google/go-containerregistry/pkg/v1/types"
+
+	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
 type ArtefactInfo struct {
@@ -61,34 +62,48 @@ func (c *Client) GetArtefact(ctx context.Context, ref string) (*ArtefactInfo, er
 }
 
 // based on https://github.com/fluxcd/pkg/blob/2a323d771e17af02dee2ccbbb9b445b78ab048e5/oci/client/push.go
-func (c *Client) PushArtefact(ctx context.Context, url, sourceDir string, meta Metadata, ignorePaths []string) (string, error) {
-	ref, err := name.ParseReference(url)
-	if err != nil {
-		return "", fmt.Errorf("invalid URL: %w", err)
-	}
+func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir string) (string, error) {
 
-	tmpDir, err := os.MkdirTemp("", "oci")
+	tmpDir, err := os.MkdirTemp("", "bpt-oci-artefact-*")
 	if err != nil {
 		return "", err
 	}
 	defer os.RemoveAll(tmpDir)
 
-	tmpFile := filepath.Join(tmpDir, "artifact.tgz")
+	tmpFile := filepath.Join(tmpDir, "artefact.tgz")
 
-	if err := c.Build(tmpFile, sourceDir, ignorePaths); err != nil {
+	if err := c.Build(tmpFile, sourceDir, nil); err != nil {
 		return "", err
 	}
 
-	if meta.Created == "" {
-		ct := time.Now().UTC()
-		meta.Created = ct.Format(time.RFC3339)
+	// TODO: can avoid re-reading the file by rewrtiting the Build function and passing io.TeeWriter
+	data, err := os.OpenFile(tmpFile, os.O_RDONLY, 0)
+	if err != nil {
+		return "", err
 	}
 
-	img := mutate.MediaType(empty.Image, types.OCIManifestSchema1)
-	img = mutate.ConfigMediaType(img, oci.CanonicalConfigMediaType)
-	img = mutate.Annotations(img, meta.ToAnnotations()).(gcrv1.Image)
+	c.hash.Reset()
+	if _, err := io.Copy(c.hash, data); err != nil {
+		return "", err
+	}
 
-	layer, err := tarball.LayerFromFile(tmpFile, tarball.WithMediaType(oci.CanonicalContentMediaType))
+	ref := destinationRef + ":" + types.ConfigImageTagPrefix + hex.EncodeToString(c.hash.Sum(nil))
+	// _, err := name.ParseReference(ref)
+	// if err != nil {
+	// 	return "", fmt.Errorf("invalid URL: %w", err)
+	// }
+
+	// if meta.Created == "" {
+	// 	ct := time.Now().UTC()
+	// 	meta.Created = ct.Format(time.RFC3339)
+	// }
+
+	// TODO: define tape media types
+	img := mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1)
+	img = mutate.ConfigMediaType(img, ociclient.CanonicalConfigMediaType)
+	// img = mutate.Annotations(img, meta.ToAnnotations()).(v1.Image)
+
+	layer, err := tarball.LayerFromFile(tmpFile, tarball.WithMediaType(ociclient.CanonicalContentMediaType))
 	if err != nil {
 		return "", fmt.Errorf("creating content layer failed: %w", err)
 	}
@@ -98,7 +113,7 @@ func (c *Client) PushArtefact(ctx context.Context, url, sourceDir string, meta M
 		return "", fmt.Errorf("appeding content to artifact failed: %w", err)
 	}
 
-	if err := crane.Push(img, url, c.optionsWithContext(ctx)...); err != nil {
+	if err := crane.Push(img, ref, c.withContext(ctx)...); err != nil {
 		return "", fmt.Errorf("pushing artifact failed: %w", err)
 	}
 
@@ -107,5 +122,5 @@ func (c *Client) PushArtefact(ctx context.Context, url, sourceDir string, meta M
 		return "", fmt.Errorf("parsing artifact digest failed: %w", err)
 	}
 
-	return ref.Context().Digest(digest.String()).String(), err
+	return ref + "@" + digest.String(), err
 }

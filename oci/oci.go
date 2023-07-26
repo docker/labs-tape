@@ -3,7 +3,9 @@ package oci
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"hash"
 	"strings"
 
 	ociclient "github.com/fluxcd/pkg/oci/client"
@@ -23,6 +25,7 @@ type (
 	Descriptor = v1.Descriptor
 	Client     struct {
 		*ociclient.Client
+		hash hash.Hash
 	}
 )
 
@@ -38,6 +41,7 @@ func NewClient(opts []crane.Option) *Client {
 
 	return &Client{
 		Client: ociclient.NewClient(options),
+		hash:   sha256.New(),
 	}
 }
 
