@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	ociclient "github.com/fluxcd/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -63,8 +64,7 @@ func (c *Client) GetArtefact(ctx context.Context, ref string) (*ArtefactInfo, er
 }
 
 // based on https://github.com/fluxcd/pkg/blob/2a323d771e17af02dee2ccbbb9b445b78ab048e5/oci/client/push.go
-func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir string) (string, error) {
-
+func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir string, timestamp *time.Time) (string, error) {
 	tmpDir, err := os.MkdirTemp("", "bpt-oci-artefact-*")
 	if err != nil {
 		return "", err
@@ -94,15 +94,21 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	// 	return "", fmt.Errorf("invalid URL: %w", err)
 	// }
 
-	// if meta.Created == "" {
-	// 	ct := time.Now().UTC()
-	// 	meta.Created = ct.Format(time.RFC3339)
-	// }
+	if timestamp == nil {
+		timestamp = new(time.Time)
+		*timestamp = time.Now().UTC()
+	}
 
-	// TODO: define tape media types
-	img := mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1)
-	img = mutate.ConfigMediaType(img, ociclient.CanonicalConfigMediaType)
-	// img = mutate.Annotations(img, meta.ToAnnotations()).(v1.Image)
+	img := mutate.Annotations(
+		mutate.ConfigMediaType(
+			// TODO: define tape media types
+			mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
+			ociclient.CanonicalConfigMediaType,
+		),
+		map[string]string{
+			ociclient.CreatedAnnotation: timestamp.Format(time.RFC3339),
+		},
+	).(v1.Image)
 
 	layer, err := tarball.LayerFromFile(tmpFile, tarball.WithMediaType(ociclient.CanonicalContentMediaType))
 	if err != nil {

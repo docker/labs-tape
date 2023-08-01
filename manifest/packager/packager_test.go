@@ -75,8 +75,16 @@ func makePackagerTest(tc testdata.TestCase) func(t *testing.T) {
 
 		// g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
-		_, err = NewDefaultPackager(client, makeDestination(tc.Description)).Push(ctx, images.Dir())
+		destinationRef := makeDestination(tc.Description)
+		_, sorceEpochTimestamp := loader.MostRecentlyModified()
+
+		artefactRef1, err := NewDefaultPackager(client, destinationRef, &sorceEpochTimestamp).Push(ctx, images.Dir())
 		g.Expect(err).To(Succeed())
+
+		artefactRef2, err := NewDefaultPackager(client, destinationRef, &sorceEpochTimestamp).Push(ctx, images.Dir())
+		g.Expect(err).To(Succeed())
+
+		g.Expect(artefactRef1).To(Equal(artefactRef2))
 
 		// TODO: pull the contents from the registry and compare them to what is expected;
 		// e.g. also as the means to test inspection logic (TBI)
