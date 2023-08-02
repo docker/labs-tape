@@ -1,0 +1,25 @@
+name: CI
+on:
+  pull_request:
+    types: [opened, reopened]
+  push:
+    branches: ["**"]
+
+jobs:
+  image:
+    name: Build the image
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-qemu-action@v2
+      - uses: docker://ghcr.io/errordeveloper/imagine:2ac274f.8fed464-dev@sha256:fb1b83b0b83701990dbf9449058c7ad611e70ec15cb42bb394260a71daeb391f
+        env:
+          ANY_REGISTRY_DISABLE: true
+          DOCKER_HUB_PUBLIC_ACCESS_ONLY: true
+          GHCR_USERNAME: $GITHUB_ACTOR
+          GHCR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          entrypoint: imagine
+          args: build --platform linux/amd64,linux/arm64 --config build.yaml --upstream-branch origin/main --registry ghcr.io/docker --push
