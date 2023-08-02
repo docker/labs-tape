@@ -41,7 +41,7 @@ func (c *RegistryCopier) CopyImages(ctx context.Context, lists ...*types.ImageLi
 			if err := c.Copy(ctx, image.Ref(true), newRef, image.Digest); err != nil {
 				return nil, err
 			}
-			copiedImages = append(copiedImages, newRef)
+			copiedImages = append(copiedImages, newRef+"@"+image.Digest)
 		}
 	}
 	return copiedImages, nil
