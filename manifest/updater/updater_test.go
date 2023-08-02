@@ -60,7 +60,9 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 		// TODO: fix this, it currently breaks as tc.Expected has a single source
 		// g.Expect(images.Dedup()).To(Succeed())
 
-		g.Expect(imagecopier.NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)).To(Succeed())
+		imagesCopied, err := imagecopier.NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(imagesCopied).To(HaveLen(images.Len()))
 
 		imagecopier.SetNewImageRefs(makeDestination(tc.Description), sha256.New(), tc.Expected)
 

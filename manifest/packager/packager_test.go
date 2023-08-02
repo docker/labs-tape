@@ -57,7 +57,9 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 		// TODO: should this use fake resolver to avoid network traffic?
 		g.Expect(imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
 
-		g.Expect(imagecopier.NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)).To(Succeed())
+		imagesCopied, err := imagecopier.NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(imagesCopied).To(HaveLen(images.Len()))
 
 		imagecopier.SetNewImageRefs(makeDestination(tc.Description), sha256.New(), tc.Expected)
 
@@ -73,7 +75,7 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 
 		// g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
-		_, err := NewDefaultPackager(client, makeDestination(tc.Description)).Push(ctx, images.Dir())
+		_, err = NewDefaultPackager(client, makeDestination(tc.Description)).Push(ctx, images.Dir())
 		g.Expect(err).To(Succeed())
 
 		// TODO: pull the contents from the registry and compare them to what is expected;
