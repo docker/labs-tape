@@ -32,10 +32,6 @@ type (
 func NewClient(opts []crane.Option) *Client {
 	options := []crane.Option{
 		crane.WithUserAgent(UserAgent),
-		crane.WithPlatform(&v1.Platform{
-			Architecture: "unknown",
-			OS:           "unknown",
-		}),
 	}
 	options = append(options, opts...)
 

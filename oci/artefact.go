@@ -10,6 +10,7 @@ import (
 
 	ociclient "github.com/fluxcd/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/crane"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -113,7 +114,7 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		return "", fmt.Errorf("appeding content to artifact failed: %w", err)
 	}
 
-	if err := crane.Push(img, ref, c.withContext(ctx)...); err != nil {
+	if err := crane.Push(img, ref, c.artefactPushOptions(ctx)...); err != nil {
 		return "", fmt.Errorf("pushing artifact failed: %w", err)
 	}
 
@@ -123,4 +124,12 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	}
 
 	return ref + "@" + digest.String(), err
+}
+
+func (c *Client) artefactPushOptions(ctx context.Context) []crane.Option {
+	return append(c.withContext(ctx),
+		crane.WithPlatform(&v1.Platform{
+			Architecture: "unknown",
+			OS:           "unknown",
+		}))
 }
