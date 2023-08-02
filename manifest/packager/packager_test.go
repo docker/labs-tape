@@ -25,12 +25,12 @@ func makeDestination(name string) string {
 	return fmt.Sprintf("ttl.sh/%s/bpt-packager-test-%s", destinationUUID, name)
 }
 
-func TestUpdater(t *testing.T) {
+func TestPackager(t *testing.T) {
 	cases := testdata.BaseYAMLCasesWithDigests(t)
-	cases.Run(t, makeUpdaterTest)
+	cases.Run(t, makePackagerTest)
 }
 
-func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
+func makePackagerTest(tc testdata.TestCase) func(t *testing.T) {
 	return func(t *testing.T) {
 		g := NewWithT(t)
 		t.Parallel()

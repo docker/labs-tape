@@ -23,7 +23,7 @@ func makeDestination(name string) string {
 	return fmt.Sprintf("ttl.sh/%s/bpt-imagecopier-test-%s", destinationUUID, name)
 }
 
-func TestImageResover(t *testing.T) {
+func TestImageCopier(t *testing.T) {
 	testdata.BaseYAMLCasesWithDigests(t).Run(t, makeImageCopierTest)
 }
 
