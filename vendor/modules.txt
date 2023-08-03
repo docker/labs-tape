@@ -57,9 +57,15 @@ github.com/AzureAD/microsoft-authentication-library-for-go/apps/public
 # github.com/Masterminds/semver/v3 v3.2.1
 ## explicit; go 1.18
 github.com/Masterminds/semver/v3
+# github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d
+## explicit
+github.com/Shopify/logrus-bugsnag
 # github.com/acomagu/bufpipe v1.0.4
 ## explicit; go 1.12
 github.com/acomagu/bufpipe
+# github.com/aserto-dev/certs v0.0.3
+## explicit; go 1.17
+github.com/aserto-dev/certs
 # github.com/aws/aws-sdk-go-v2 v1.18.1
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2
@@ -152,6 +158,19 @@ github.com/aws/smithy-go/waiter
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
+# github.com/bshuster-repo/logrus-logstash-hook v1.0.0
+## explicit
+github.com/bshuster-repo/logrus-logstash-hook
+# github.com/bugsnag/bugsnag-go v0.0.0-20141110184014-b1d153021fcd
+## explicit
+github.com/bugsnag/bugsnag-go
+github.com/bugsnag/bugsnag-go/errors
+# github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b
+## explicit
+github.com/bugsnag/osext
+# github.com/bugsnag/panicwrap v0.0.0-20151223152923-e2c28503fcd0
+## explicit
+github.com/bugsnag/panicwrap
 # github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
@@ -165,6 +184,52 @@ github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
+# github.com/distribution/distribution/v3 v3.0.0-20230802173126-807a836852c0
+## explicit; go 1.18
+github.com/distribution/distribution/v3
+github.com/distribution/distribution/v3/configuration
+github.com/distribution/distribution/v3/context
+github.com/distribution/distribution/v3/health
+github.com/distribution/distribution/v3/health/checks
+github.com/distribution/distribution/v3/manifest
+github.com/distribution/distribution/v3/manifest/manifestlist
+github.com/distribution/distribution/v3/manifest/ocischema
+github.com/distribution/distribution/v3/manifest/schema1
+github.com/distribution/distribution/v3/manifest/schema2
+github.com/distribution/distribution/v3/metrics
+github.com/distribution/distribution/v3/notifications
+github.com/distribution/distribution/v3/reference
+github.com/distribution/distribution/v3/registry
+github.com/distribution/distribution/v3/registry/api/errcode
+github.com/distribution/distribution/v3/registry/api/v2
+github.com/distribution/distribution/v3/registry/auth
+github.com/distribution/distribution/v3/registry/auth/htpasswd
+github.com/distribution/distribution/v3/registry/auth/silly
+github.com/distribution/distribution/v3/registry/auth/token
+github.com/distribution/distribution/v3/registry/client
+github.com/distribution/distribution/v3/registry/client/auth
+github.com/distribution/distribution/v3/registry/client/auth/challenge
+github.com/distribution/distribution/v3/registry/client/transport
+github.com/distribution/distribution/v3/registry/handlers
+github.com/distribution/distribution/v3/registry/listener
+github.com/distribution/distribution/v3/registry/middleware/registry
+github.com/distribution/distribution/v3/registry/middleware/repository
+github.com/distribution/distribution/v3/registry/proxy
+github.com/distribution/distribution/v3/registry/proxy/scheduler
+github.com/distribution/distribution/v3/registry/storage
+github.com/distribution/distribution/v3/registry/storage/cache
+github.com/distribution/distribution/v3/registry/storage/cache/memory
+github.com/distribution/distribution/v3/registry/storage/cache/metrics
+github.com/distribution/distribution/v3/registry/storage/cache/redis
+github.com/distribution/distribution/v3/registry/storage/driver
+github.com/distribution/distribution/v3/registry/storage/driver/base
+github.com/distribution/distribution/v3/registry/storage/driver/factory
+github.com/distribution/distribution/v3/registry/storage/driver/filesystem
+github.com/distribution/distribution/v3/registry/storage/driver/inmemory
+github.com/distribution/distribution/v3/registry/storage/driver/middleware
+github.com/distribution/distribution/v3/registry/storage/driver/middleware/redirect
+github.com/distribution/distribution/v3/uuid
+github.com/distribution/distribution/v3/version
 # github.com/docker/cli v23.0.5+incompatible
 ## explicit
 github.com/docker/cli/cli/config
@@ -181,6 +246,15 @@ github.com/docker/docker/pkg/homedir
 ## explicit; go 1.18
 github.com/docker/docker-credential-helpers/client
 github.com/docker/docker-credential-helpers/credentials
+# github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c
+## explicit
+github.com/docker/go-events
+# github.com/docker/go-metrics v0.0.1
+## explicit; go 1.11
+github.com/docker/go-metrics
+# github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1
+## explicit
+github.com/docker/libtrust
 # github.com/docker/staples/pkg v0.0.0-20220727151952-78b3ab135578
 ## explicit; go 1.17
 github.com/docker/staples/pkg/logger
@@ -191,6 +265,9 @@ github.com/emicklei/go-restful/v3/log
 # github.com/evanphx/json-patch/v5 v5.6.0
 ## explicit; go 1.12
 github.com/evanphx/json-patch/v5
+# github.com/felixge/httpsnoop v1.0.3
+## explicit; go 1.13
+github.com/felixge/httpsnoop
 # github.com/fluxcd/pkg/oci v0.30.0
 ## explicit; go 1.20
 github.com/fluxcd/pkg/oci
@@ -259,6 +336,9 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
+# github.com/gomodule/redigo v1.8.2
+## explicit; go 1.14
+github.com/gomodule/redigo/redis
 # github.com/google/gnostic v0.6.9
 ## explicit; go 1.12
 github.com/google/gnostic/compiler
@@ -310,6 +390,16 @@ github.com/google/gofuzz/bytesource
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
+# github.com/gorilla/handlers v1.5.1
+## explicit; go 1.14
+github.com/gorilla/handlers
+# github.com/gorilla/mux v1.8.0
+## explicit; go 1.12
+github.com/gorilla/mux
+# github.com/hashicorp/golang-lru v0.5.4
+## explicit; go 1.12
+github.com/hashicorp/golang-lru
+github.com/hashicorp/golang-lru/simplelru
 # github.com/imdario/mergo v0.3.15
 ## explicit; go 1.13
 github.com/imdario/mergo
@@ -320,6 +410,9 @@ github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.1
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1
+# github.com/inconshreveable/mousetrap v1.1.0
+## explicit; go 1.18
+github.com/inconshreveable/mousetrap
 # github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
 ## explicit
 github.com/jbenet/go-context/io
@@ -356,11 +449,24 @@ github.com/letsencrypt/boulder/identifier
 github.com/letsencrypt/boulder/probs
 github.com/letsencrypt/boulder/revocation
 github.com/letsencrypt/boulder/sa/proto
+# github.com/magefile/mage v1.13.0
+## explicit; go 1.12
+github.com/magefile/mage/internal
+github.com/magefile/mage/mage
+github.com/magefile/mage/mg
+github.com/magefile/mage/parse
+github.com/magefile/mage/sh
 # github.com/mailru/easyjson v0.7.7
 ## explicit; go 1.12
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mattn/go-colorable v0.1.12
+## explicit; go 1.13
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.14
+## explicit; go 1.12
+github.com/mattn/go-isatty
 # github.com/matttproud/golang_protobuf_extensions v1.0.4
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
@@ -426,6 +532,11 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/rs/zerolog v1.28.0
+## explicit; go 1.15
+github.com/rs/zerolog
+github.com/rs/zerolog/internal/cbor
+github.com/rs/zerolog/internal/json
 # github.com/secure-systems-lab/go-securesystemslib v0.6.0
 ## explicit; go 1.20
 github.com/secure-systems-lab/go-securesystemslib/cjson
@@ -440,6 +551,9 @@ github.com/sigstore/sigstore/pkg/cryptoutils
 # github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
+# github.com/spf13/cobra v1.7.0
+## explicit; go 1.15
+github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
@@ -458,8 +572,20 @@ github.com/vbatts/tar-split/archive/tar
 # github.com/xlab/treeprint v1.2.0
 ## explicit; go 1.13
 github.com/xlab/treeprint
+# github.com/yvasiyarov/go-metrics v0.0.0-20140926110328-57bccd1ccd43
+## explicit
+github.com/yvasiyarov/go-metrics
+# github.com/yvasiyarov/gorelic v0.0.0-20141212073537-a9bba5b9ab50
+## explicit
+github.com/yvasiyarov/gorelic
+# github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f
+## explicit
+github.com/yvasiyarov/newrelic_platform_go
 # golang.org/x/crypto v0.10.0
 ## explicit; go 1.17
+golang.org/x/crypto/acme
+golang.org/x/crypto/acme/autocert
+golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
@@ -476,6 +602,10 @@ golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/scrypt
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
+# golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
+## explicit; go 1.20
+golang.org/x/exp/constraints
+golang.org/x/exp/slices
 # golang.org/x/net v0.11.0
 ## explicit; go 1.17
 golang.org/x/net/context

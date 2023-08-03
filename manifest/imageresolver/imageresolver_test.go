@@ -37,7 +37,7 @@ func makeImageResolverTest(tc testdata.TestCase) func(t *testing.T) {
 		ctx := context.Background()
 
 		images := scanner.GetImages()
-		// TODO: should this use fake resolver to avoid network traffic?
+		// TODO: should this use fake resolver to avoid network traffic or perhaps pre-cache images in trex?
 		resolver := NewRegistryResolver(nil)
 		g.Expect(resolver.ResolveDigests(ctx, images)).To(Succeed())
 

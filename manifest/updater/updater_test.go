@@ -3,10 +3,9 @@ package updater_test
 import (
 	"context"
 	"crypto/sha256"
-	"fmt"
 	"testing"
 
-	"github.com/google/uuid"
+	"github.com/google/go-containerregistry/pkg/crane"
 	. "github.com/onsi/gomega"
 
 	"github.com/docker/labs-brown-tape/manifest/imagecopier"
@@ -17,15 +16,20 @@ import (
 	"github.com/docker/labs-brown-tape/manifest/types"
 	. "github.com/docker/labs-brown-tape/manifest/updater"
 	"github.com/docker/labs-brown-tape/oci"
+	"github.com/docker/labs-brown-tape/trex"
 )
 
-var destinationUUID = uuid.New().String()
-
-func makeDestination(name string) string {
-	return fmt.Sprintf("ttl.sh/%s/bpt-updater-test-%s", destinationUUID, name)
-}
+var (
+	craneOptions    []crane.Option
+	makeDestination func(string) string
+)
 
 func TestUpdater(t *testing.T) {
+
+	trex.RunShared()
+	craneOptions = trex.Shared.CraneOptions()
+	makeDestination = trex.Shared.NewUniqueRepoNamer("bpt-updater-test")
+
 	cases := testdata.BaseYAMLCasesWithDigests(t)
 	cases.Run(t, makeUpdaterTest)
 }
@@ -50,16 +54,15 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 		g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
 		ctx := context.Background()
-		client := oci.NewClient(nil)
+		client := oci.NewClient(craneOptions)
 
 		images := scanner.GetImages()
 
-		// TODO: should this use fake resolver to avoid network traffic?
+		// TODO: should this use fake resolver to avoid network traffic or perhaps pre-cache images in trex?
 		g.Expect(imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
 
 		// TODO: fix this, it currently breaks as tc.Expected has a single source
 		// g.Expect(images.Dedup()).To(Succeed())
-
 		imagesCopied, err := imagecopier.NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(imagesCopied).To(HaveLen(images.Len()))

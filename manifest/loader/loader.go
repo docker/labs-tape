@@ -5,8 +5,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/otiai10/copy"
+	"golang.org/x/exp/slices"
 )
 
 type Loader interface {
@@ -15,12 +18,13 @@ type Loader interface {
 	RelPaths() (string, []string)
 	ContainsRelPath(string) bool
 	Cleanup() error
+	MostRecentlyModified() (string, time.Time)
 }
 
 type RecursiveManifestDirectoryLoader struct {
 	fromPath string
 	tempDir  string
-	paths    []string
+	files    []fileWithModTime
 	relPaths map[string]string
 }
 
@@ -49,11 +53,11 @@ func (l *RecursiveManifestDirectoryLoader) Load() error {
 	}
 	l.relPaths = make(map[string]string, len(files))
 	for _, f := range files {
-		relPath, err := filepath.Rel(l.fromPath, f)
+		relPath, err := filepath.Rel(l.fromPath, f.path)
 		if err != nil {
 			return err
 		}
-		l.relPaths[relPath] = f
+		l.relPaths[relPath] = f.path
 	}
 
 	// if useKustomize(l.fromPath) || useKustomize(files...) {
@@ -65,6 +69,12 @@ func (l *RecursiveManifestDirectoryLoader) Load() error {
 	// }
 
 	copyOptions := copy.Options{
+		// TODO: documentation for PreserveTimes says there is limited accuracy on Linux,
+		// namely it's only to up to 1ms, it's possible that it need a fix, e.g. by rouding
+		// stored timestamps to milliseconds on all platforms;
+		// the answer really depends on how accurately mtime can be preserved between platforms,
+		// it makes sense to consider what git, tar and rsync do in that regard
+		PreserveTimes: true,
 		Skip: func(fi fs.FileInfo, src, _ string) (bool, error) {
 			if fi.IsDir() {
 				return false, nil
@@ -81,12 +91,21 @@ func (l *RecursiveManifestDirectoryLoader) Load() error {
 	if err != nil {
 		return err
 	}
-	l.paths = files
+	l.files = files
+
 	return nil
 }
 
+func (l *RecursiveManifestDirectoryLoader) MostRecentlyModified() (string, time.Time) {
+	return l.files[0].path, l.files[0].time
+}
+
 func (l *RecursiveManifestDirectoryLoader) Paths() []string {
-	return l.paths
+	paths := make([]string, 0, len(l.files))
+	for _, file := range l.files {
+		paths = append(paths, file.path)
+	}
+	return paths
 }
 
 func (l *RecursiveManifestDirectoryLoader) RelPaths() (string, []string) {
@@ -121,8 +140,16 @@ func mkdirTemp() (string, error) {
 	return tempDir, nil
 }
 
+type fileWithModTime struct {
+	// collect timestamps to use for setting the artefact creation time
+	path string
+	time time.Time
+}
+
 // based on ExpandPathsToFileVisitors (https://github.com/kubernetes/cli-runtime/blob/022795328092ecd88b713a2bab868e3994eb0b87/pkg/resource/visitor.go#L478)
-func getFiles(path string) ([]string, error) {
+func getFiles(path string) ([]fileWithModTime, error) {
+	files := []fileWithModTime{}
+
 	fi, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return nil, fmt.Errorf("the path %q does not exist: %w", path, err)
@@ -132,10 +159,10 @@ func getFiles(path string) ([]string, error) {
 	}
 
 	if !fi.IsDir() {
-		return []string{path}, nil
+		files = append(files, fileWithModTime{path: path, time: fi.ModTime()})
+		return files, nil
 	}
 
-	files := []string{}
 	doWalk := func(p string, e fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -144,14 +171,27 @@ func getFiles(path string) ([]string, error) {
 		if e.IsDir() || ignoreFile(p) {
 			return nil
 		}
+		info, err := e.Info()
+		if err != nil {
+			return err
+		}
 
-		files = append(files, p)
+		files = append(files, fileWithModTime{path: p, time: info.ModTime()})
 		return nil
 	}
 
 	if err := filepath.WalkDir(path, doWalk); err != nil {
 		return nil, err
 	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no files found in %q", path)
+	}
+	slices.SortFunc(files, func(a, b fileWithModTime) int {
+		if timewise := a.time.Compare(b.time); timewise != 0 {
+			return timewise
+		}
+		return strings.Compare(a.path, b.path)
+	})
 	return files, nil
 }
 
