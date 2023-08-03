@@ -55,7 +55,7 @@ func makeImageResolverTest(tc testdata.TestCase) func(t *testing.T) {
 		if tc.NumRelatedTags > 0 {
 			for _, image := range images.Items() {
 				// TODO: this is very naive, need more concerte assertions
-				relatedTo := related.RelatedTo(image.Digest)
+				relatedTo := related.RelatedTo(image.Ref(true))
 				g.Expect(relatedTo).ToNot(BeEmpty())
 			}
 		}
