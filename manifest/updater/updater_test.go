@@ -25,7 +25,6 @@ var (
 )
 
 func TestUpdater(t *testing.T) {
-
 	trex.RunShared()
 	craneOptions = trex.Shared.CraneOptions()
 	makeDestination = trex.Shared.NewUniqueRepoNamer("bpt-updater-test")
