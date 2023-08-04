@@ -30,7 +30,7 @@ func TestPackager(t *testing.T) {
 	makeDestination = trex.Shared.NewUniqueRepoNamer("bpt-updater-test")
 
 	cases := testdata.BaseYAMLCasesWithDigests(t)
-	cases.Run(t, makePackagerTest)
+	cases.Run(t, ("../../"), makePackagerTest)
 }
 
 func makePackagerTest(tc testdata.TestCase) func(t *testing.T) {

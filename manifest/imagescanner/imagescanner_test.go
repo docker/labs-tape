@@ -17,7 +17,7 @@ func TestImageScanner(t *testing.T) {
 	cases = append(cases, testdata.BasicJSONCases()...)
 	cases = append(cases, testdata.BaseYAMLCases()...)
 
-	cases.Run(t, makeImageScannerTest)
+	cases.Run(t, ("../../"), makeImageScannerTest)
 }
 
 func makeImageScannerTest(tc testdata.TestCase) func(t *testing.T) {

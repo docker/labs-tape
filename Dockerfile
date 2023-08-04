@@ -8,7 +8,7 @@ ENV GOPRIVATE=github.com/docker
 RUN --mount=type=bind,target=/src --mount=target=/root/.cache,type=cache --mount=target=/go/pkg/mod,type=cache \
     go vet ./...
 
-RUN --mount=type=bind,target=/src --mount=target=/root/.cache,type=cache --mount=target=/go/pkg/mod,type=cache \
+RUN --mount=type=bind,target=/src,readwrite --mount=target=/root/.cache,type=cache --mount=target=/go/pkg/mod,type=cache \
     go test ./...
 
 FROM builder-base as builder-arch

@@ -1,7 +1,6 @@
 package imagescanner
 
 import (
-	"encoding/hex"
 	"hash"
 	"io"
 	"os"
@@ -12,6 +11,8 @@ import (
 	kimage "sigs.k8s.io/kustomize/api/image"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 
+	"github.com/docker/labs-brown-tape/attest"
+	"github.com/docker/labs-brown-tape/attest/digest"
 	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
@@ -20,12 +21,14 @@ type ImageScanner interface {
 	Scan(string, []string) error
 	GetImages() *types.ImageList
 	Reset()
+	WithProvinanceAttestor(*attest.PathCheckerRegistry)
 }
 
 type DefaultImageScanner struct {
 	directory string
 	trackers  []*Tracker
 	hash      hash.Hash
+	attestor  *attest.PathCheckerRegistry
 }
 
 func NewDefaultImageScanner() ImageScanner {
@@ -63,10 +66,19 @@ func (s *DefaultImageScanner) Scan(dir string, manifests []string) error {
 			return err
 		}
 
-		tracker.ManifestDigest = hex.EncodeToString(s.hash.Sum(nil))
+		tracker.ManifestDigest = digest.MakeSHA256(s.hash)
 		s.trackers = append(s.trackers, tracker)
+		if s.attestor != nil {
+			if err := s.attestor.Register(tracker.Manifest, tracker.ManifestDigest); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
+}
+
+func (s *DefaultImageScanner) WithProvinanceAttestor(pcr *attest.PathCheckerRegistry) {
+	s.attestor = pcr
 }
 
 func (s *DefaultImageScanner) GetImages() *types.ImageList {

@@ -10,3 +10,6 @@
 !manifest/
 !oci/
 !trex/
+!attest/
+# git dir is required by test in attest/vsc/git
+!.git/

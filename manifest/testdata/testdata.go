@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/labs-brown-tape/manifest/types"
@@ -16,17 +17,23 @@ type TestCase struct {
 
 type TestCases []TestCase
 
-func (tcs TestCases) Run(t *testing.T, doTest func(tc TestCase) func(t *testing.T)) {
+func (tcs TestCases) Run(t *testing.T, pathToRootDir string, doTest func(tc TestCase) func(t *testing.T)) {
 	t.Helper()
+	tcs.makeRelativeTo(pathToRootDir)
 	for i := range tcs {
 		t.Run(tcs[i].Description, doTest(tcs[i]))
+	}
+}
+func (tcs TestCases) makeRelativeTo(dir string) {
+	for i := range tcs {
+		tcs[i].Directory = filepath.Join(dir, tcs[i].Directory)
 	}
 }
 
 func BasicJSONCases() TestCases {
 	return []TestCase{{
 		Description: "basic",
-		Directory:   "../testdata/basic",
+		Directory:   "manifest/testdata/basic",
 		Manifests: []string{
 			"list.json",
 			"deployment.json",
@@ -92,7 +99,7 @@ func BasicJSONCases() TestCases {
 var baseYAMLCases = []TestCase{
 	{
 		Description: "contour",
-		Directory:   "../testdata/contour",
+		Directory:   "manifest/testdata/contour",
 		Manifests: []string{
 			"00-common.yaml",
 			"00-crds.yaml",
@@ -184,7 +191,7 @@ var baseYAMLCases = []TestCase{
 	},
 	{
 		Description: "flux",
-		Directory:   "../testdata/flux",
+		Directory:   "manifest/testdata/flux",
 		Manifests: []string{
 			"flux.yaml",
 			"kustomization.yaml",
@@ -223,7 +230,7 @@ var baseYAMLCases = []TestCase{
 	},
 	{
 		Description: "tekton",
-		Directory:   "../testdata/tekton",
+		Directory:   "manifest/testdata/tekton",
 		Manifests: []string{
 			"base/feature-flags.yaml",
 			"base/kustomization.yaml",

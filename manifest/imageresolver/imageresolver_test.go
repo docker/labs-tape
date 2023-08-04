@@ -16,7 +16,7 @@ import (
 func TestImageResover(t *testing.T) {
 	cases := testdata.BaseYAMLCasesWithDigests(t)
 
-	cases.Run(t, makeImageResolverTest)
+	cases.Run(t, ("../../"), makeImageResolverTest)
 }
 
 func makeImageResolverTest(tc testdata.TestCase) func(t *testing.T) {

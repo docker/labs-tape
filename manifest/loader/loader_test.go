@@ -16,7 +16,7 @@ func TestLoader(t *testing.T) {
 	cases = append(cases, testdata.BasicJSONCases()...)
 	cases = append(cases, testdata.BaseYAMLCases()...)
 
-	cases.Run(t, makeLoaderTest)
+	cases.Run(t, ("../../"), makeLoaderTest)
 }
 
 func makeLoaderTest(tc testdata.TestCase) func(t *testing.T) {

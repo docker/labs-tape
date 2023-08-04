@@ -27,7 +27,7 @@ func TestImageCopier(t *testing.T) {
 	craneOptions = trex.Shared.CraneOptions()
 	makeDestination = trex.Shared.NewUniqueRepoNamer("bpt-updater-test")
 
-	testdata.BaseYAMLCasesWithDigests(t).Run(t, makeImageCopierTest)
+	testdata.BaseYAMLCasesWithDigests(t).Run(t, ("../../"), makeImageCopierTest)
 }
 
 func makeImageCopierTest(tc testdata.TestCase) func(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"sigs.k8s.io/kustomize/api/filters/filtersutil"
 	"sigs.k8s.io/kustomize/api/filters/fsslice"
 
+	"github.com/docker/labs-brown-tape/attest/digest"
 	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
@@ -73,7 +74,7 @@ type SetValueArg struct {
 
 type Tracker struct {
 	Manifest       string
-	ManifestDigest string
+	ManifestDigest digest.SHA256
 
 	setValueArgs []SetValueArg
 }
