@@ -299,9 +299,6 @@ github.com/docker/go-metrics
 # github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1
 ## explicit
 github.com/docker/libtrust
-# github.com/docker/staples/pkg v0.0.0-20220727151952-78b3ab135578
-## explicit; go 1.17
-github.com/docker/staples/pkg/logger
 # github.com/emicklei/go-restful/v3 v3.9.0
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
