@@ -72,28 +72,20 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	}
 	c.tape.log.Debugf("loaded manifests: %v", loader.Paths())
 
-	pathChecker, attreg, err := attest.DetectVCS(c.ManifestDir)
+	repoDetected, attreg, err := attest.DetectVCS(c.ManifestDir)
 	if err != nil {
 		return err
 	}
-	if pathChecker != nil {
-		checked, _, err := pathChecker.Check()
+	/// baseDir := c.ManifestDir
+	if vcsSummary := attreg.BaseDirSummary(); repoDetected && vcsSummary != nil {
+		// baseDir = vcsSummary.Common().Path
+		summaryJSON, err := json.Marshal(vcsSummary.Full())
 		if err != nil {
 			return err
 		}
-		if checked {
-			summary, err := pathChecker.MakeSummary()
-			if err != nil {
-				return err
-			}
-			summaryJSON, err := json.Marshal(summary.Full())
-			if err != nil {
-				return err
-			}
-			c.tape.log.Infof("VCS info for %q: %s", c.ManifestDir, summaryJSON)
-		} else {
-			c.tape.log.Warnf("path %q is not in VCS", c.ManifestDir)
-		}
+		c.tape.log.Infof("VCS info for %q: %s", c.ManifestDir, summaryJSON)
+	} else {
+		c.tape.log.Warnf("path %q is not in VCS", c.ManifestDir)
 	}
 
 	scanner := imagescanner.NewDefaultImageScanner()
@@ -106,7 +98,13 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	images := scanner.GetImages()
 	c.tape.log.Debugf("found images: %#v", images.Items())
 
-	attreg.AssociateStatements(manifest.MakeOriginalImageRefStatements(images)...)
+	if err := attreg.AssociateCoreStatements(); err != nil {
+		return err
+	}
+
+	if err := attreg.AssociateStatements(manifest.MakeOriginalImageRefStatements(images)...); err != nil {
+		return err
+	}
 
 	client := oci.NewClient(nil)
 	// TODO: use client.LoginWithCredentials() and/or other options
@@ -125,7 +123,9 @@ func (c *TapePackageCommand) Execute(args []string) error {
 		return fmt.Errorf("failed to dedup images: %w", err)
 	}
 
-	attreg.AssociateStatements(manifest.MakeResovedImageRefStatements(images)...)
+	if err := attreg.AssociateStatements(manifest.MakeResovedImageRefStatements(images)...); err != nil {
+		return err
+	}
 
 	c.tape.log.Info("resolving related images")
 	related, err := resolver.FindRelatedTags(ctx, images)
@@ -153,7 +153,7 @@ func (c *TapePackageCommand) Execute(args []string) error {
 		return fmt.Errorf("failed to update manifest files: %w", err)
 	}
 
-	if err := attreg.EncodeAll(os.Stderr); err != nil {
+	if err := attreg.EncodeAllAttestations(os.Stderr); err != nil {
 		return err
 	}
 

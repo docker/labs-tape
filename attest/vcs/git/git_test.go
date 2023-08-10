@@ -157,7 +157,7 @@ func TestGitProvider(t *testing.T) {
 
 			g := NewWithT(t)
 
-			checked, unmodified, err := NewPathChecker(tc.path).Check()
+			checked, unmodified, err := NewPathChecker(tc.path, "").Check()
 			g.Expect(err).To(tc.err)
 			g.Expect(checked).To(tc.checked)
 			g.Expect(unmodified).To(tc.unmodified)
