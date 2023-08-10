@@ -2,11 +2,15 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	kimage "sigs.k8s.io/kustomize/api/image"
 
+	"github.com/docker/labs-brown-tape/attest"
+	"github.com/docker/labs-brown-tape/attest/manifest"
 	"github.com/docker/labs-brown-tape/manifest/imagecopier"
 	"github.com/docker/labs-brown-tape/manifest/imageresolver"
 	"github.com/docker/labs-brown-tape/manifest/imagescanner"
@@ -68,7 +72,32 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	}
 	c.tape.log.Debugf("loaded manifests: %v", loader.Paths())
 
+	pathChecker, attreg, err := attest.DetectVCS(c.ManifestDir)
+	if err != nil {
+		return err
+	}
+	if pathChecker != nil {
+		checked, _, err := pathChecker.Check()
+		if err != nil {
+			return err
+		}
+		if checked {
+			summary, err := pathChecker.MakeSummary()
+			if err != nil {
+				return err
+			}
+			summaryJSON, err := json.Marshal(summary.Full())
+			if err != nil {
+				return err
+			}
+			c.tape.log.Infof("VCS info for %q: %s", c.ManifestDir, summaryJSON)
+		} else {
+			c.tape.log.Warnf("path %q is not in VCS", c.ManifestDir)
+		}
+	}
+
 	scanner := imagescanner.NewDefaultImageScanner()
+	scanner.WithProvinanceAttestor(attreg)
 
 	if err := scanner.Scan(loader.RelPaths()); err != nil {
 		return fmt.Errorf("failed to scan images: %w", err)
@@ -76,6 +105,8 @@ func (c *TapePackageCommand) Execute(args []string) error {
 
 	images := scanner.GetImages()
 	c.tape.log.Debugf("found images: %#v", images.Items())
+
+	attreg.AssociateStatements(manifest.MakeOriginalImageRefStatements(images)...)
 
 	client := oci.NewClient(nil)
 	// TODO: use client.LoginWithCredentials() and/or other options
@@ -93,6 +124,8 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	if err := images.Dedup(); err != nil {
 		return fmt.Errorf("failed to dedup images: %w", err)
 	}
+
+	attreg.AssociateStatements(manifest.MakeResovedImageRefStatements(images)...)
 
 	c.tape.log.Info("resolving related images")
 	related, err := resolver.FindRelatedTags(ctx, images)
@@ -118,6 +151,10 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	updater := updater.NewFileUpdater()
 	if err := updater.Update(images); err != nil {
 		return fmt.Errorf("failed to update manifest files: %w", err)
+	}
+
+	if err := attreg.EncodeAll(os.Stderr); err != nil {
+		return err
 	}
 
 	path, sourceEpochTimestamp := loader.MostRecentlyModified()

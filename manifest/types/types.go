@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	kustomize "sigs.k8s.io/kustomize/api/types"
+
+	"github.com/docker/labs-brown-tape/attest/digest"
 )
 
 const (
@@ -37,7 +39,7 @@ type (
 	// ImageSourceLocation is a unique location identifier for an image
 	ImageSourceLocation struct {
 		Manifest       string
-		ManifestDigest string
+		ManifestDigest digest.SHA256
 
 		Line, Column int
 
