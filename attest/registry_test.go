@@ -57,22 +57,31 @@ func makeRegistryTest(tc testdata.TestCase) func(t *testing.T) {
 
 		g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
 
+		collection, err := attreg.MakePathCheckSummarySummaryCollection()
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(collection).ToNot(BeNil())
+		g.Expect(collection.Providers).To(ConsistOf("git"))
+		g.Expect(collection.EntryGroups).To(HaveLen(1))
+		g.Expect(collection.EntryGroups[0]).To(HaveLen(expectedNumPaths + 1))
+
+		g.Expect(attreg.AssociateCoreStatements()).To(Succeed())
+
 		ctx := context.Background()
 		client := oci.NewClient(craneOptions)
 
 		images := scanner.GetImages()
 
-		attreg.AssociateStatements(manifest.MakeOriginalImageRefStatements(images)...)
+		g.Expect(attreg.AssociateStatements(manifest.MakeOriginalImageRefStatements(images)...)).To(Succeed())
 
 		// TODO: should this use fake resolver to avoid network traffic or perhaps pre-cache images in trex?
 		g.Expect(imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
 
 		g.Expect(images.Dedup()).To(Succeed())
 
-		attreg.AssociateStatements(manifest.MakeResovedImageRefStatements(images)...)
+		g.Expect(attreg.AssociateStatements(manifest.MakeResovedImageRefStatements(images)...)).To(Succeed())
 
 		buf := bytes.NewBuffer(nil)
-		g.Expect(attreg.EncodeAll(buf)).To(Succeed())
+		g.Expect(attreg.EncodeAllAttestations(buf)).To(Succeed())
 
 	}
 }

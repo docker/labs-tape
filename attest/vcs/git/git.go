@@ -13,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/utils/ioutil"
 
+	"github.com/docker/labs-brown-tape/attest/digest"
 	"github.com/docker/labs-brown-tape/attest/types"
 )
 
@@ -25,15 +26,17 @@ const (
 // TODO: need a way to detect multiple repos, for now PathChecker is only meant
 // to be used for the manifest dir iteself, and assume there is no nested repos
 
-func NewPathChecker(path string) types.PathChecker {
+func NewPathChecker(path string, digest digest.SHA256) types.PathChecker {
 	return &PathChecker{
-		path: path,
+		path:   path,
+		digest: digest,
 	}
 }
 
 type PathChecker struct {
-	path  string
-	cache *pathCheckerCache
+	path   string
+	digest digest.SHA256
+	cache  *pathCheckerCache
 }
 
 type (
@@ -67,8 +70,57 @@ type pathCheckerCache struct {
 	repoPath   string
 }
 
+func (s *Summary) SameRepo(other types.PathCheckSummary) bool {
+	if other.ProviderName() != ProviderName {
+		return false
+	}
+
+	if other, ok := other.Full().(*Summary); !ok || (ok && evalChecks(true,
+		(s.URI != other.URI),
+		func() bool { return (s.Git == nil || other.Git == nil) },
+		func() bool { return (s.Git.Reference.Hash != other.Git.Reference.Hash) },
+		func() bool { return (len(s.Git.Remotes) != len(other.Git.Remotes)) },
+	)) {
+		return false
+	}
+
+	return true
+}
+
+func evalChecks(v bool, args ...any) bool {
+	for _, c := range makeChecks(args...) {
+		if c.eval() == v {
+			return true
+		}
+	}
+	return false
+}
+
+func makeChecks(args ...any) checks {
+	checks := make(checks, len(args))
+	for i := range args {
+		switch arg := any(args[i]).(type) {
+		case bool:
+			checks[i] = checkVal(arg)
+		case func() bool:
+			checks[i] = checkFunc(arg)
+		}
+	}
+	return checks
+}
+
+type checks []interface{ eval() bool }
+
+type checkVal bool
+
+func (v checkVal) eval() bool { return bool(v) }
+
+type checkFunc func() bool
+
+func (f checkFunc) eval() bool { return f() }
+
 func (c *PathChecker) MakeSummary() (types.PathCheckSummary, error) {
-	if c.cache == nil {
+	if c.cache == nil || !c.cache.checked {
 		checked, _, err := c.Check()
 		if err != nil {
 			return nil, err
@@ -78,16 +130,14 @@ func (c *PathChecker) MakeSummary() (types.PathCheckSummary, error) {
 		}
 	}
 
-	if !c.cache.checked {
-		return nil, fmt.Errorf("%q is not checked (cached)", c.path)
-	}
-
 	git := GitSummary{}
 
 	summary := &Summary{
 		PathCheckSummaryCommon: types.PathCheckSummaryCommon{
 			Unmodified: c.cache.unmodified,
 			Path:       c.cache.repoPath,
+			IsDir:      c.IsTree(),
+			Digest:     c.digest,
 		},
 		Git: &git,
 	}
@@ -154,9 +204,11 @@ func (c *PathChecker) MakeSummary() (types.PathCheckSummary, error) {
 	return summary, nil
 }
 
+func (PathChecker) ProviderName() string { return ProviderName }
+
 func (s *Summary) Full() interface{} { return s }
 
-func (c *PathChecker) ProviderName() string { return ProviderName }
+func (c *Summary) ProviderName() string { return ProviderName }
 
 func (c *PathChecker) DetectRepo() (bool, error) {
 	if c.cache == nil {

@@ -3,6 +3,7 @@ package attest
 import (
 	"fmt"
 
+	"github.com/docker/labs-brown-tape/attest/digest"
 	"github.com/docker/labs-brown-tape/attest/types"
 	"github.com/docker/labs-brown-tape/attest/vcs/git"
 )
@@ -11,23 +12,23 @@ var (
 	_ types.PathChecker = (*git.PathChecker)(nil)
 )
 
-func DetectVCS(path string) (types.PathChecker, *PathCheckerRegistry, error) {
-	for _, provider := range map[string]func(string) types.PathChecker{
+func DetectVCS(path string) (bool, *PathCheckerRegistry, error) {
+	for _, provider := range map[string]func(string, digest.SHA256) types.PathChecker{
 		// TODO: support other VCS providers
 		git.ProviderName: git.NewPathChecker,
 	} {
-		checker := provider(path)
+		checker := provider(path, "")
 		ok, err := checker.DetectRepo()
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to detect VCS: %w", err)
+			return false, nil, fmt.Errorf("unable to detect VCS: %w", err)
 		}
 		if ok {
 			registry := NewPathCheckerRegistry(path, provider)
-			if err := registry.Init(); err != nil {
-				return nil, nil, err
+			if err := registry.init(checker); err != nil {
+				return false, nil, err
 			}
-			return checker, registry, nil
+			return true, registry, nil
 		}
 	}
-	return nil, nil, nil
+	return false, nil, nil
 }
