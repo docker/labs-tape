@@ -9,11 +9,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	ociclient "github.com/fluxcd/pkg/oci"
-	"github.com/fluxcd/pkg/sourceignore"
 	"github.com/google/go-containerregistry/pkg/crane"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -78,7 +76,7 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 
 	tmpFile := filepath.Join(tmpDir, "artefact.tgz")
 
-	if err := c.Build(tmpFile, sourceDir, nil); err != nil {
+	if err := c.BuildArtefact(tmpFile, sourceDir); err != nil {
 		return "", err
 	}
 
@@ -146,7 +144,7 @@ func (c *Client) artefactPushOptions(ctx context.Context) []crane.Option {
 }
 
 // based on https://github.com/fluxcd/pkg/blob/2a323d771e17af02dee2ccbbb9b445b78ab048e5/oci/client/build.go
-func (c *Client) BuildArtefact(artifactPath, sourceDir string, ignorePaths []string) (err error) {
+func (c *Client) BuildArtefact(artifactPath, sourceDir string) (err error) {
 	absDir, err := filepath.Abs(sourceDir)
 	if err != nil {
 		return err
@@ -168,14 +166,6 @@ func (c *Client) BuildArtefact(artifactPath, sourceDir string, ignorePaths []str
 		}
 	}()
 
-	ignore := strings.Join(ignorePaths, "\n")
-	domain := strings.Split(filepath.Clean(absDir), string(filepath.Separator))
-	ps := sourceignore.ReadPatterns(strings.NewReader(ignore), domain)
-	matcher := sourceignore.NewMatcher(ps)
-	filter := func(p string, fi os.FileInfo) bool {
-		return matcher.Match(strings.Split(p, string(filepath.Separator)), fi.IsDir())
-	}
-
 	sz := &writeCounter{}
 	mw := io.MultiWriter(tf, sz)
 
@@ -188,10 +178,6 @@ func (c *Client) BuildArtefact(artifactPath, sourceDir string, ignorePaths []str
 
 		// Ignore anything that is not a file or directories e.g. symlinks
 		if m := fi.Mode(); !(m.IsRegular() || m.IsDir()) {
-			return nil
-		}
-
-		if len(ignorePaths) > 0 && filter(p, fi) {
 			return nil
 		}
 
