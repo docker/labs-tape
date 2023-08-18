@@ -1,15 +1,19 @@
 package oci
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	ociclient "github.com/fluxcd/pkg/oci"
+	"github.com/fluxcd/pkg/sourceignore"
 	"github.com/google/go-containerregistry/pkg/crane"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -17,7 +21,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	typesv1 "github.com/google/go-containerregistry/pkg/v1/types"
 
-	"github.com/docker/labs-brown-tape/manifest/types"
+	attestTypes "github.com/docker/labs-brown-tape/attest/types"
+	manifestTypes "github.com/docker/labs-brown-tape/manifest/types"
 )
 
 type ArtefactInfo struct {
@@ -64,7 +69,7 @@ func (c *Client) GetArtefact(ctx context.Context, ref string) (*ArtefactInfo, er
 }
 
 // based on https://github.com/fluxcd/pkg/blob/2a323d771e17af02dee2ccbbb9b445b78ab048e5/oci/client/push.go
-func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir string, timestamp *time.Time) (string, error) {
+func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir string, timestamp *time.Time, sourceAttestations ...attestTypes.Statement) (string, error) {
 	tmpDir, err := os.MkdirTemp("", "bpt-oci-artefact-*")
 	if err != nil {
 		return "", err
@@ -88,7 +93,7 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		return "", err
 	}
 
-	ref := destinationRef + ":" + types.ConfigImageTagPrefix + hex.EncodeToString(c.hash.Sum(nil))
+	ref := destinationRef + ":" + manifestTypes.ConfigImageTagPrefix + hex.EncodeToString(c.hash.Sum(nil))
 	// _, err := name.ParseReference(ref)
 	// if err != nil {
 	// 	return "", fmt.Errorf("invalid URL: %w", err)
@@ -138,4 +143,135 @@ func (c *Client) artefactPushOptions(ctx context.Context) []crane.Option {
 			Architecture: "unknown",
 			OS:           "unknown",
 		}))
+}
+
+// based on https://github.com/fluxcd/pkg/blob/2a323d771e17af02dee2ccbbb9b445b78ab048e5/oci/client/build.go
+func (c *Client) BuildArtefact(artifactPath, sourceDir string, ignorePaths []string) (err error) {
+	absDir, err := filepath.Abs(sourceDir)
+	if err != nil {
+		return err
+	}
+
+	dirStat, err := os.Stat(absDir)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("invalid source dir path: %s", absDir)
+	}
+
+	tf, err := os.CreateTemp(filepath.Split(absDir))
+	if err != nil {
+		return err
+	}
+	tmpName := tf.Name()
+	defer func() {
+		if err != nil {
+			os.Remove(tmpName)
+		}
+	}()
+
+	ignore := strings.Join(ignorePaths, "\n")
+	domain := strings.Split(filepath.Clean(absDir), string(filepath.Separator))
+	ps := sourceignore.ReadPatterns(strings.NewReader(ignore), domain)
+	matcher := sourceignore.NewMatcher(ps)
+	filter := func(p string, fi os.FileInfo) bool {
+		return matcher.Match(strings.Split(p, string(filepath.Separator)), fi.IsDir())
+	}
+
+	sz := &writeCounter{}
+	mw := io.MultiWriter(tf, sz)
+
+	gw := gzip.NewWriter(mw)
+	tw := tar.NewWriter(gw)
+	if err := filepath.Walk(absDir, func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Ignore anything that is not a file or directories e.g. symlinks
+		if m := fi.Mode(); !(m.IsRegular() || m.IsDir()) {
+			return nil
+		}
+
+		if len(ignorePaths) > 0 && filter(p, fi) {
+			return nil
+		}
+
+		header, err := tar.FileInfoHeader(fi, p)
+		if err != nil {
+			return err
+		}
+		if dirStat.IsDir() {
+			// The name needs to be modified to maintain directory structure
+			// as tar.FileInfoHeader only has access to the base name of the file.
+			// Ref: https://golang.org/src/archive/tar/common.go?#L6264
+			//
+			// we only want to do this if a directory was passed in
+			relFilePath, err := filepath.Rel(absDir, p)
+			if err != nil {
+				return err
+			}
+			// Normalize file path so it works on windows
+			header.Name = filepath.ToSlash(relFilePath)
+		}
+
+		// Remove any environment specific data.
+		header.Gid = 0
+		header.Uid = 0
+		header.Uname = ""
+		header.Gname = ""
+		header.ModTime = time.Time{}
+		header.AccessTime = time.Time{}
+		header.ChangeTime = time.Time{}
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		if !fi.Mode().IsRegular() {
+			return nil
+		}
+		f, err := os.Open(p)
+		if err != nil {
+			f.Close()
+			return err
+		}
+		if _, err := io.Copy(tw, f); err != nil {
+			f.Close()
+			return err
+		}
+		return f.Close()
+	}); err != nil {
+		tw.Close()
+		gw.Close()
+		tf.Close()
+		return err
+	}
+
+	if err := tw.Close(); err != nil {
+		gw.Close()
+		tf.Close()
+		return err
+	}
+	if err := gw.Close(); err != nil {
+		tf.Close()
+		return err
+	}
+	if err := tf.Close(); err != nil {
+		return err
+	}
+
+	if err := os.Chmod(tmpName, 0o640); err != nil {
+		return err
+	}
+
+	return fs.RenameWithFallback(tmpName, artifactPath)
+}
+
+type writeCounter struct {
+	written int64
+}
+
+func (wc *writeCounter) Write(p []byte) (int, error) {
+	n := len(p)
+	wc.written += int64(n)
+	return n, nil
 }
