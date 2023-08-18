@@ -2,25 +2,45 @@ package oci
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"time"
 
 	ociclient "github.com/fluxcd/pkg/oci"
+	"github.com/go-git/go-git/v5/utils/ioutil"
+	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	typesv1 "github.com/google/go-containerregistry/pkg/v1/types"
 
 	attestTypes "github.com/docker/labs-brown-tape/attest/types"
 	manifestTypes "github.com/docker/labs-brown-tape/manifest/types"
+)
+
+const (
+	mediaTypePrefix  = "application/vnd.docker.tape"
+	ConfigMediaType  = mediaTypePrefix + ".config.v1alpha1+json"
+	ContentMediaType = mediaTypePrefix + ".content.v1alpha1.tar+gzip"
+	AttestMediaType  = mediaTypePrefix + ".attest.v1alpha1.jsonl+gzip"
+
+	ContentInterpreterAnnotation   = mediaTypePrefix + "content-interpreter.v1alpha1"
+	ContentInterpreterKubectlApply = mediaTypePrefix + ".kubectl-apply.v1alpha1.tar+gzip"
+
+	// TODO: content inteprete invocation with an image
+
+	regularFileMode = 0o640
 )
 
 type ArtefactInfo struct {
@@ -76,60 +96,98 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 
 	tmpFile := filepath.Join(tmpDir, "artefact.tgz")
 
-	if err := c.BuildArtefact(tmpFile, sourceDir); err != nil {
-		return "", err
-	}
-
-	// TODO: can avoid re-reading the file by rewrtiting the Build function and passing io.TeeWriter
-	data, err := os.OpenFile(tmpFile, os.O_RDONLY, 0)
+	outputFile, err := os.OpenFile(tmpFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, regularFileMode)
 	if err != nil {
 		return "", err
 	}
+	defer outputFile.Close()
 
 	c.hash.Reset()
-	if _, err := io.Copy(c.hash, data); err != nil {
+
+	output := io.MultiWriter(outputFile, c.hash)
+
+	if err := c.BuildArtefact(tmpFile, sourceDir, output); err != nil {
 		return "", err
 	}
 
+	attestLayer, err := c.BuildAttestations(sourceAttestations)
+	if err != nil {
+		return "", fmt.Errorf("failed to serialise attestations: %w", err)
+	}
+
 	ref := destinationRef + ":" + manifestTypes.ConfigImageTagPrefix + hex.EncodeToString(c.hash.Sum(nil))
-	// _, err := name.ParseReference(ref)
-	// if err != nil {
-	// 	return "", fmt.Errorf("invalid URL: %w", err)
-	// }
+	tag, err := name.ParseReference(ref)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
 
 	if timestamp == nil {
 		timestamp = new(time.Time)
 		*timestamp = time.Now().UTC()
 	}
 
-	img := mutate.Annotations(
-		mutate.ConfigMediaType(
-			// TODO: define tape media types
-			mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
-			ociclient.CanonicalConfigMediaType,
-		),
-		map[string]string{
-			ociclient.CreatedAnnotation: timestamp.Format(time.RFC3339),
-		},
-	).(v1.Image)
-
-	layer, err := tarball.LayerFromFile(tmpFile, tarball.WithMediaType(ociclient.CanonicalContentMediaType))
-	if err != nil {
-		return "", fmt.Errorf("creating content layer failed: %w", err)
+	indexAnnotations := map[string]string{
+		ociclient.CreatedAnnotation: timestamp.Format(time.RFC3339),
 	}
 
-	img, err = mutate.Append(img, mutate.Addendum{Layer: layer})
+	index := mutate.Annotations(
+		empty.Index,
+		indexAnnotations,
+	).(v1.ImageIndex)
+
+	configAnnotations := maps.Clone(indexAnnotations)
+
+	configAnnotations[ContentInterpreterAnnotation] = ContentInterpreterKubectlApply
+
+	config := mutate.Annotations(
+		mutate.ConfigMediaType(
+			mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
+			ConfigMediaType,
+		),
+		configAnnotations,
+	).(v1.Image)
+
+	attest := mutate.Annotations(
+		mutate.ConfigMediaType(
+			mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
+			ConfigMediaType,
+		),
+		indexAnnotations,
+	).(v1.Image)
+
+	// There is an option to use LayerFromReader which will avoid writing any files to disk,
+	// albeit it might impact memory usage and there is no strict security requirement, and
+	// manifests do get written out already anyway.
+	configLayer, err := tarball.LayerFromFile(tmpFile,
+		tarball.WithMediaType(ContentMediaType),
+		tarball.WithCompression(compression.GZip),
+		tarball.WithCompressedCaching,
+	)
+	if err != nil {
+		return "", fmt.Errorf("creating artefact content layer failed: %w", err)
+	}
+
+	config, err = mutate.Append(config, mutate.Addendum{Layer: configLayer})
 	if err != nil {
 		return "", fmt.Errorf("appeding content to artifact failed: %w", err)
 	}
 
-	if err := crane.Push(img, ref, c.artefactPushOptions(ctx)...); err != nil {
-		return "", fmt.Errorf("pushing artifact failed: %w", err)
+	attest, err = mutate.Append(attest, mutate.Addendum{Layer: attestLayer})
+	if err != nil {
+		return "", fmt.Errorf("appeding attestations to artifact failed: %w", err)
 	}
 
-	digest, err := img.Digest()
+	index = mutate.AppendManifests(index,
+		mutate.IndexAddendum{Add: config},
+		mutate.IndexAddendum{Add: attest},
+	)
+	digest, err := index.Digest()
 	if err != nil {
-		return "", fmt.Errorf("parsing artifact digest failed: %w", err)
+		return "", fmt.Errorf("parsing index digest failed: %w", err)
+	}
+
+	if err := remote.WriteIndex(tag, index, crane.GetOptions(c.artefactPushOptions(ctx)...).Remote...); err != nil {
+		return "", fmt.Errorf("pushing index failed: %w", err)
 	}
 
 	return ref + "@" + digest.String(), err
@@ -144,7 +202,8 @@ func (c *Client) artefactPushOptions(ctx context.Context) []crane.Option {
 }
 
 // based on https://github.com/fluxcd/pkg/blob/2a323d771e17af02dee2ccbbb9b445b78ab048e5/oci/client/build.go
-func (c *Client) BuildArtefact(artifactPath, sourceDir string) (err error) {
+func (c *Client) BuildArtefact(artifactPath,
+	sourceDir string, output io.Writer) error {
 	absDir, err := filepath.Abs(sourceDir)
 	if err != nil {
 		return err
@@ -155,30 +214,22 @@ func (c *Client) BuildArtefact(artifactPath, sourceDir string) (err error) {
 		return fmt.Errorf("invalid source dir path: %s", absDir)
 	}
 
-	tf, err := os.CreateTemp(filepath.Split(absDir))
-	if err != nil {
-		return err
-	}
-	tmpName := tf.Name()
-	defer func() {
-		if err != nil {
-			os.Remove(tmpName)
-		}
-	}()
-
-	sz := &writeCounter{}
-	mw := io.MultiWriter(tf, sz)
-
-	gw := gzip.NewWriter(mw)
+	gw := gzip.NewWriter(output)
 	tw := tar.NewWriter(gw)
-	if err := filepath.Walk(absDir, func(p string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	if err := filepath.WalkDir(absDir, func(p string, di os.DirEntry, prevErr error) (err error) {
+		if prevErr != nil {
+			return prevErr
 		}
 
 		// Ignore anything that is not a file or directories e.g. symlinks
-		if m := fi.Mode(); !(m.IsRegular() || m.IsDir()) {
+		ft := di.Type()
+		if !(ft.IsRegular() || ft.IsDir()) {
 			return nil
+		}
+
+		fi, err := di.Info()
+		if err != nil {
+			return err
 		}
 
 		header, err := tar.FileInfoHeader(fi, p)
@@ -212,52 +263,61 @@ func (c *Client) BuildArtefact(artifactPath, sourceDir string) (err error) {
 			return err
 		}
 
-		if !fi.Mode().IsRegular() {
+		if !ft.IsRegular() {
 			return nil
 		}
-		f, err := os.Open(p)
+
+		file, err := os.Open(p)
 		if err != nil {
-			f.Close()
 			return err
 		}
-		if _, err := io.Copy(tw, f); err != nil {
-			f.Close()
+		defer ioutil.CheckClose(file, &err)
+
+		if _, err := io.Copy(tw, file); err != nil {
 			return err
 		}
-		return f.Close()
+		return nil
 	}); err != nil {
-		tw.Close()
-		gw.Close()
-		tf.Close()
+		_ = tw.Close()
+		_ = gw.Close()
 		return err
 	}
 
 	if err := tw.Close(); err != nil {
-		gw.Close()
-		tf.Close()
+		_ = gw.Close()
 		return err
 	}
 	if err := gw.Close(); err != nil {
-		tf.Close()
-		return err
-	}
-	if err := tf.Close(); err != nil {
 		return err
 	}
 
-	if err := os.Chmod(tmpName, 0o640); err != nil {
-		return err
-	}
-
-	return fs.RenameWithFallback(tmpName, artifactPath)
+	return nil
 }
 
-type writeCounter struct {
-	written int64
-}
+func (c *Client) BuildAttestations(statements []attestTypes.Statement) (v1.Layer, error) {
+	output := bytes.NewBuffer(nil)
+	gw := gzip.NewWriter(output)
 
-func (wc *writeCounter) Write(p []byte) (int, error) {
-	n := len(p)
-	wc.written += int64(n)
-	return n, nil
+	if err := attestTypes.Statements(statements).Encode(gw); err != nil {
+		return nil, err
+	}
+
+	if err := gw.Close(); err != nil {
+		return nil, err
+	}
+
+	layer, err := tarball.LayerFromOpener(
+		func() (io.ReadCloser, error) {
+			// this doesn't copy data, it should re-use same undelying slice
+			return io.NopCloser(bytes.NewReader(output.Bytes())), nil
+		},
+		tarball.WithMediaType(AttestMediaType),
+		tarball.WithCompression(compression.GZip),
+		tarball.WithCompressedCaching,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating attestations layer failed: %w", err)
+	}
+
+	return layer, nil
 }
