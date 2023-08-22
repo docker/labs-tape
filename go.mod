@@ -1,6 +1,6 @@
 module github.com/docker/labs-brown-tape
 
-go 1.20
+go 1.21
 
 require (
 	github.com/aserto-dev/certs v0.0.3
@@ -17,7 +17,6 @@ require (
 	github.com/sigstore/sigstore v1.7.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/thought-machine/go-flags v1.6.2
-	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
 	sigs.k8s.io/kustomize/api v0.13.4
 	sigs.k8s.io/kustomize/kyaml v0.14.2
 )

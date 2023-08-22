@@ -1,4 +1,4 @@
-ARG GOLANG_IMAGE=docker.io/library/golang:1.20@sha256:bc5f0b5e43282627279fe5262ae275fecb3d2eae3b33977a7fd200c7a760d6f1
+ARG GOLANG_IMAGE=docker.io/library/golang:1.21@sha256:b490ae1f0ece153648dd3c5d25be59a63f966b5f9e1311245c947de4506981aa
 
 FROM --platform=${BUILDPLATFORM} ${GOLANG_IMAGE} as builder-base
 

@@ -5,11 +5,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/otiai10/copy"
-	"golang.org/x/exp/slices"
 )
 
 type Loader interface {

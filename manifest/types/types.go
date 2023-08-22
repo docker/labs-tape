@@ -1,14 +1,16 @@
 package types
 
 import (
+	"cmp"
 	"fmt"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync"
 
 	kustomize "sigs.k8s.io/kustomize/api/types"
 
 	"github.com/docker/labs-brown-tape/attest/digest"
+	// "github.com/google/go-cmp/cmp"
 )
 
 const (
@@ -170,14 +172,14 @@ func (l *ImageList) Dedup() error {
 		l.items = make([]Image, 0, len(unique))
 		for _, v := range unique {
 			if len(v.Sources) > 1 {
-				sort.Slice(v.Sources, func(i, j int) bool {
-					if v.Sources[i].Manifest == v.Sources[j].Manifest {
-						if v.Sources[i].Line == v.Sources[j].Line {
-							return v.Sources[i].Column < v.Sources[j].Column
-						}
-						return v.Sources[i].Line < v.Sources[j].Line
+				slices.SortFunc(v.Sources, func(a, b Source) int {
+					if namewise := cmp.Compare(a.Manifest, b.Manifest); namewise != 0 {
+						return namewise
 					}
-					return v.Sources[i].Manifest < v.Sources[j].Manifest
+					if linewise := cmp.Compare(a.Line, b.Line); linewise != 0 {
+						return linewise
+					}
+					return cmp.Compare(a.Column, b.Column)
 				})
 			}
 			l.items = append(l.items, v)
