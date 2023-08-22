@@ -1,10 +1,11 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	kimage "sigs.k8s.io/kustomize/api/image"
@@ -153,9 +154,13 @@ func (c *TapePackageCommand) Execute(args []string) error {
 		return fmt.Errorf("failed to update manifest files: %w", err)
 	}
 
-	if err := attreg.EncodeAllAttestations(os.Stderr); err != nil {
-		return err
-	}
+	c.tape.log.DebugFn(func() []interface{} {
+		buf := bytes.NewBuffer(nil)
+		if err := attreg.EncodeAllAttestations(base64.NewEncoder(base64.StdEncoding, buf)); err != nil {
+			return []interface{}{"failed to encode attestations", err}
+		}
+		return []interface{}{"attestations: ", buf.String()}
+	})
 
 	path, sourceEpochTimestamp := loader.MostRecentlyModified()
 	c.tape.log.Debugf("using source epoch timestamp %s from most recently modified manifest file %q", sourceEpochTimestamp, path)
