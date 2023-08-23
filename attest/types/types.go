@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,6 +85,12 @@ type (
 		Subjects Subjects `json:"subject"`
 		Predicate
 	}
+
+	SummaryAnnotation struct {
+		NumStamentes   int      `json:"numStamentes"`
+		PredicateTypes []string `json:"predicateTypes"`
+		Subjects       Subjects `json:"subject"`
+	}
 )
 
 var (
@@ -120,6 +128,49 @@ func (s Statements) EncodeWith(encoder EncodeFunc) error {
 
 func (s Statements) Encode(w io.Writer) error {
 	return s.EncodeWith(json.NewEncoder(w).Encode)
+}
+
+func (s Statements) MakeSummaryAnnotation() SummaryAnnotation {
+	types := map[string]struct{}{}
+	subjects := map[Subject]struct{}{}
+	for _, statement := range s {
+		types[statement.GetType()] = struct{}{}
+		for _, subject := range statement.GetSubject() {
+			subjects[subject] = struct{}{}
+		}
+	}
+
+	summary := SummaryAnnotation{
+		NumStamentes:   len(s),
+		PredicateTypes: make([]string, 0, len(types)),
+		Subjects:       make(Subjects, len(subjects)),
+	}
+	for t := range types {
+		summary.PredicateTypes = append(summary.PredicateTypes, t)
+	}
+	for s := range subjects {
+		summary.Subjects = append(summary.Subjects, s)
+	}
+
+	return summary
+}
+
+func (s Statements) MarshalSummaryAnnotation() (string, error) {
+	buf := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(base64.NewEncoder(base64.StdEncoding, buf)).
+		Encode(s.MakeSummaryAnnotation()); err != nil {
+		return "", fmt.Errorf("encoding attestations summary failed: %w", err)
+	}
+	return buf.String(), nil
+}
+
+func UnmarshalSummaryAnnotation(s string) (*SummaryAnnotation, error) {
+	summary := &SummaryAnnotation{}
+	if err := json.NewDecoder(base64.NewDecoder(base64.StdEncoding, bytes.NewBufferString(s))).
+		Decode(summary); err != nil {
+		return nil, fmt.Errorf("decoding attestation summary failed: %w", err)
+	}
+	return summary, nil
 }
 
 func MakeSubject(name string, digest digest.SHA256) Subject { return Subject{name, digest} }

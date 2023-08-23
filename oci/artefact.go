@@ -38,6 +38,8 @@ const (
 	ContentInterpreterAnnotation   = mediaTypePrefix + "content-interpreter.v1alpha1"
 	ContentInterpreterKubectlApply = mediaTypePrefix + ".kubectl-apply.v1alpha1.tar+gzip"
 
+	AttestationsSummaryAnnotations = mediaTypePrefix + ".attestations-summary.v1alpha1"
+
 	// TODO: content interpreter invocation with an image
 
 	regularFileMode = 0o640
@@ -169,12 +171,20 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	)
 
 	if attestLayer != nil {
+		attestAnnotations := maps.Clone(indexAnnotations)
+
+		summary, err := (attestTypes.Statements)(sourceAttestations).MarshalSummaryAnnotation()
+		if err != nil {
+			return "", err
+		}
+		attestAnnotations[AttestationsSummaryAnnotations] = summary
+
 		attest := mutate.Annotations(
 			mutate.ConfigMediaType(
 				mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
 				ConfigMediaType,
 			),
-			indexAnnotations,
+			attestAnnotations,
 		).(v1.Image)
 
 		attest, err = mutate.Append(attest, mutate.Addendum{Layer: attestLayer})
