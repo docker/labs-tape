@@ -164,7 +164,7 @@ func (c *TapePackageCommand) Execute(args []string) error {
 
 	path, sourceEpochTimestamp := loader.MostRecentlyModified()
 	c.tape.log.Debugf("using source epoch timestamp %s from most recently modified manifest file %q", sourceEpochTimestamp, path)
-	packager := packager.NewDefaultPackager(client, c.OutputImage, &sourceEpochTimestamp)
+	packager := packager.NewDefaultPackager(client, c.OutputImage, &sourceEpochTimestamp, attreg.GetStatements()...)
 	packageRef, err := packager.Push(ctx, images.Dir())
 	if err != nil {
 		return fmt.Errorf("failed to create package: %w", err)

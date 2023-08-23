@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	attestTypes "github.com/docker/labs-brown-tape/attest/types"
 	"github.com/docker/labs-brown-tape/oci"
 )
 
@@ -16,9 +17,10 @@ type DefaultPackager struct {
 	*oci.Client
 	destinationRef       string
 	sourceEpochTimestamp *time.Time
+	sourceAttestations   attestTypes.Statements
 }
 
-func NewDefaultPackager(client *oci.Client, destinationRef string, sourceEpochTimestamp *time.Time) Packager {
+func NewDefaultPackager(client *oci.Client, destinationRef string, sourceEpochTimestamp *time.Time, sourceAttestations ...attestTypes.Statement) Packager {
 	if client == nil {
 		client = oci.NewClient(nil)
 	}
@@ -26,9 +28,11 @@ func NewDefaultPackager(client *oci.Client, destinationRef string, sourceEpochTi
 		Client:               client,
 		destinationRef:       destinationRef,
 		sourceEpochTimestamp: sourceEpochTimestamp,
+		sourceAttestations:   sourceAttestations,
 	}
 }
 
 func (r *DefaultPackager) Push(ctx context.Context, dir string) (string, error) {
-	return r.Client.PushArtefact(ctx, r.destinationRef, dir, r.sourceEpochTimestamp)
+	return r.Client.PushArtefact(ctx, r.destinationRef, dir,
+		r.sourceEpochTimestamp, r.sourceAttestations...)
 }

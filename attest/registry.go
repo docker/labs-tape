@@ -130,6 +130,10 @@ func (r *PathCheckerRegistry) EncodeAllAttestations(w io.Writer) error {
 	return nil
 }
 
+func (r *PathCheckerRegistry) GetStatements() types.Statements {
+	return r.statements
+}
+
 func (r *PathCheckerRegistry) dir() string {
 	switch {
 	case r.baseDir.fromRepoRoot != "":
