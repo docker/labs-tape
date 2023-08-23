@@ -1,10 +1,12 @@
 package attest
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 
 	"github.com/docker/labs-brown-tape/attest/digest"
 	"github.com/docker/labs-brown-tape/attest/manifest"
@@ -83,6 +85,7 @@ func (r *PathCheckerRegistry) AssociateStatements(statements ...types.Statement)
 		}
 	}
 	r.statements = append(r.statements, statements...)
+
 	return nil
 }
 
@@ -124,13 +127,19 @@ func (r *PathCheckerRegistry) AssociateCoreStatements() error {
 
 func (r *PathCheckerRegistry) EncodeAllAttestations(w io.Writer) error {
 	encoder := json.NewEncoder(w)
-	if err := r.statements.EncodeWith(encoder.Encode); err != nil {
+	if err := r.GetStatements().EncodeWith(encoder.Encode); err != nil {
 		return fmt.Errorf("unable to encode attestations: %w", err)
 	}
 	return nil
 }
 
 func (r *PathCheckerRegistry) GetStatements() types.Statements {
+	slices.SortFunc(r.statements, func(a, b types.Statement) int {
+		if typewise := cmp.Compare(a.GetType(), b.GetType()); typewise != 0 {
+			return typewise
+		}
+		return cmp.Compare(a.GetSubject()[0].Name, b.GetSubject()[0].Name)
+	})
 	return r.statements
 }
 

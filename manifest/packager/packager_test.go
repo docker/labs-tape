@@ -8,6 +8,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/crane"
 	. "github.com/onsi/gomega"
 
+	"github.com/docker/labs-brown-tape/attest"
+	"github.com/docker/labs-brown-tape/attest/manifest"
 	"github.com/docker/labs-brown-tape/manifest/imagecopier"
 	"github.com/docker/labs-brown-tape/manifest/imageresolver"
 	"github.com/docker/labs-brown-tape/manifest/imagescanner"
@@ -41,7 +43,13 @@ func makePackagerTest(tc testdata.TestCase) func(t *testing.T) {
 		loader := loader.NewRecursiveManifestDirectoryLoader(tc.Directory)
 		g.Expect(loader.Load()).To(Succeed())
 
+		pathChecker, attreg, err := attest.DetectVCS(tc.Directory)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(pathChecker).ToNot(BeNil())
+		g.Expect(attreg).ToNot(BeNil())
+
 		scanner := imagescanner.NewDefaultImageScanner()
+		scanner.WithProvinanceAttestor(attreg)
 
 		expectedNumPaths := len(tc.Manifests)
 		g.Expect(loader.Paths()).To(HaveLen(expectedNumPaths))
@@ -51,14 +59,19 @@ func makePackagerTest(tc testdata.TestCase) func(t *testing.T) {
 		}
 
 		g.Expect(scanner.Scan(loader.RelPaths())).To(Succeed())
+		g.Expect(attreg.AssociateCoreStatements()).To(Succeed())
 
 		ctx := context.Background()
 		client := oci.NewClient(craneOptions)
 
 		images := scanner.GetImages()
 
+		g.Expect(attreg.AssociateStatements(manifest.MakeOriginalImageRefStatements(images)...)).To(Succeed())
+
 		// TODO: should this use fake resolver to avoid network traffic or perhaps pre-cache images in trex?
 		g.Expect(imageresolver.NewRegistryResolver(client).ResolveDigests(ctx, images)).To(Succeed())
+
+		g.Expect(attreg.AssociateStatements(manifest.MakeResovedImageRefStatements(images)...)).To(Succeed())
 
 		imagesCopied, err := imagecopier.NewRegistryCopier(client, makeDestination(tc.Description)).CopyImages(ctx, images)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -81,10 +94,11 @@ func makePackagerTest(tc testdata.TestCase) func(t *testing.T) {
 		destinationRef := makeDestination(tc.Description)
 		_, sorceEpochTimestamp := loader.MostRecentlyModified()
 
-		artefactRef1, err := NewDefaultPackager(client, destinationRef, &sorceEpochTimestamp).Push(ctx, images.Dir())
+		// TODO: consider adding digest to tests fixtures to test exact value for a moree definite assertion of reproduciability
+		artefactRef1, err := NewDefaultPackager(client, destinationRef, &sorceEpochTimestamp, attreg.GetStatements()...).Push(ctx, images.Dir())
 		g.Expect(err).To(Succeed())
 
-		artefactRef2, err := NewDefaultPackager(client, destinationRef, &sorceEpochTimestamp).Push(ctx, images.Dir())
+		artefactRef2, err := NewDefaultPackager(client, destinationRef, &sorceEpochTimestamp, attreg.GetStatements()...).Push(ctx, images.Dir())
 		g.Expect(err).To(Succeed())
 
 		g.Expect(artefactRef1).To(Equal(artefactRef2))

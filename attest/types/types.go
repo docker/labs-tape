@@ -2,14 +2,16 @@ package types
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-
-	"github.com/docker/labs-brown-tape/attest/digest"
+	"slices"
 
 	toto "github.com/in-toto/in-toto-golang/in_toto"
+
+	"github.com/docker/labs-brown-tape/attest/digest"
 )
 
 type (
@@ -143,15 +145,18 @@ func (s Statements) MakeSummaryAnnotation() SummaryAnnotation {
 	summary := SummaryAnnotation{
 		NumStamentes:   len(s),
 		PredicateTypes: make([]string, 0, len(types)),
-		Subjects:       make(Subjects, len(subjects)),
+		Subjects:       make(Subjects, 0, len(subjects)),
 	}
 	for t := range types {
 		summary.PredicateTypes = append(summary.PredicateTypes, t)
 	}
+	slices.Sort(summary.PredicateTypes)
 	for s := range subjects {
 		summary.Subjects = append(summary.Subjects, s)
 	}
-
+	slices.SortFunc(summary.Subjects, func(a, b Subject) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 	return summary
 }
 
@@ -271,6 +276,22 @@ func MakePathCheckSummaryCollection(entries ...PathChecker) (*PathCheckSummaryCo
 	for provider := range providers {
 		collection.Providers = append(collection.Providers, provider)
 	}
+	slices.Sort(collection.Providers)
+
+	slices.SortFunc(collection.EntryGroups, func(a, b []PathCheckSummary) int {
+		if providerwise := cmp.Compare(a[0].ProviderName(), b[0].ProviderName()); providerwise != 0 {
+			return providerwise
+		}
+		return cmp.Compare(a[0].Common().Path, b[0].Common().Path)
+	})
+	for g := range collection.EntryGroups {
+		if len(collection.EntryGroups[g]) <= 1 {
+			continue
+		}
+		slices.SortFunc(collection.EntryGroups[g][1:], func(a, b PathCheckSummary) int {
+			return cmp.Compare(a.Common().Path, b.Common().Path)
+		})
+	}
 	return collection, nil
 }
 
@@ -315,13 +336,17 @@ func (s *SingleSubjectStatement) SetSubjects(f func(subject *Subject) error) err
 }
 
 func MakeMultiSubjectStatement(subjects Subjects, predicateType string, predicate interface{}) MultiSubjectStatement {
-	return MultiSubjectStatement{
+	statement := MultiSubjectStatement{
 		Predicate: Predicate{
 			Type:      predicateType,
 			Predicate: predicate,
 		},
 		Subjects: subjects,
 	}
+	slices.SortFunc(statement.Subjects, func(a, b Subject) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	return statement
 }
 
 func (s MultiSubjectStatement) GetSubject() Subjects          { return s.Subjects }
