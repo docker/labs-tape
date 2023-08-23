@@ -1,7 +1,7 @@
 package attest
 
 import (
-	"cmp"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +11,7 @@ import (
 	"github.com/docker/labs-brown-tape/attest/digest"
 	"github.com/docker/labs-brown-tape/attest/manifest"
 	"github.com/docker/labs-brown-tape/attest/types"
+	"github.com/fxamacker/cbor/v2"
 )
 
 type PathCheckerRegistryKey struct {
@@ -135,10 +136,25 @@ func (r *PathCheckerRegistry) EncodeAllAttestations(w io.Writer) error {
 
 func (r *PathCheckerRegistry) GetStatements() types.Statements {
 	slices.SortFunc(r.statements, func(a, b types.Statement) int {
-		if typewise := cmp.Compare(a.GetType(), b.GetType()); typewise != 0 {
-			return typewise
+		if cmp := a.Compare(b); cmp != nil {
+			return *cmp
 		}
-		return cmp.Compare(a.GetSubject()[0].Name, b.GetSubject()[0].Name)
+
+		// NB: nil can only be returned if perdicates couldn't be compared,
+		// the statement headers were checked first, are always comparable;
+		// comparison of bytes obtained from encoding is not ideal, but
+		// it's the best we can do as fallback without implementing
+		// comparison for each predicate type
+		// NB: it's also definite that both of these predicates are of the
+		// same type (at least based on the header)
+		bufA, bufB := bytes.NewBuffer(nil), bytes.NewBuffer(nil)
+		if err := cbor.NewEncoder(bufA).Encode(a.GetPredicate()); err != nil {
+			panic(fmt.Sprintf("unexpected error encoding predicate of type %T: %s", a.GetPredicate(), err))
+		}
+		if err := cbor.NewEncoder(bufB).Encode(b.GetPredicate()); err != nil {
+			panic(fmt.Sprintf("unexpected error encoding predicate of type %T: %s", b.GetPredicate(), err))
+		}
+		return bytes.Compare(bufA.Bytes(), bufB.Bytes())
 	})
 	return r.statements
 }

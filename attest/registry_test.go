@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	craneOptions    []crane.Option
-	makeDestination func(string) string
+	craneOptions []crane.Option
+	//makeDestination func(string) string
 )
 
 const repeat = 3

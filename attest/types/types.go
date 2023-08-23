@@ -62,7 +62,7 @@ type (
 	EncodeFunc          func(any) error
 	ExportableStatement interface {
 		GetType() string
-		GetPredicate() interface{}
+		GetPredicate() any
 		ExportSubject() []toto.Subject
 		Export() toto.Statement
 	}
@@ -73,19 +73,21 @@ type (
 		Encode(io.Writer) error
 		EncodeWith(EncodeFunc) error
 		SetSubjects(func(*Subject) error) error
+		Compare(Statement) Cmp
 	}
 
-	Predicate struct {
-		Type      string      `json:"predicateType"`
-		Predicate interface{} `json:"predicate"`
+	Predicate[T any] struct {
+		Type                   string `json:"predicateType"`
+		ComparablePredicate[T] `json:"predicate"`
 	}
-	SingleSubjectStatement struct {
-		Subject Subject `json:"subject"`
-		Predicate
+
+	ComparablePredicate[T any] interface {
+		Compare(T) Cmp
 	}
-	MultiSubjectStatement struct {
+
+	GenericStatement[T any] struct {
 		Subjects Subjects `json:"subject"`
-		Predicate
+		Predicate[T]
 	}
 
 	SummaryAnnotation struct {
@@ -96,9 +98,14 @@ type (
 )
 
 var (
-	_ Statement = (*SingleSubjectStatement)(nil)
-	_ Statement = (*MultiSubjectStatement)(nil)
+	_ Statement = (*GenericStatement[any])(nil)
 )
+
+type Cmp *int
+
+func CmpLess() Cmp  { cmp := -1; return &cmp }
+func CmpEqual() Cmp { cmp := 0; return &cmp }
+func CmpMore() Cmp  { cmp := +1; return &cmp }
 
 func Export(s ExportableStatement) toto.Statement {
 	return toto.Statement{
@@ -278,19 +285,12 @@ func MakePathCheckSummaryCollection(entries ...PathChecker) (*PathCheckSummaryCo
 	}
 	slices.Sort(collection.Providers)
 
-	slices.SortFunc(collection.EntryGroups, func(a, b []PathCheckSummary) int {
-		if providerwise := cmp.Compare(a[0].ProviderName(), b[0].ProviderName()); providerwise != 0 {
-			return providerwise
-		}
-		return cmp.Compare(a[0].Common().Path, b[0].Common().Path)
-	})
+	slices.SortFunc(collection.EntryGroups, comparePathCheckSummariesSlice)
 	for g := range collection.EntryGroups {
 		if len(collection.EntryGroups[g]) <= 1 {
 			continue
 		}
-		slices.SortFunc(collection.EntryGroups[g][1:], func(a, b PathCheckSummary) int {
-			return cmp.Compare(a.Common().Path, b.Common().Path)
-		})
+		slices.SortFunc(collection.EntryGroups[g][1:], comparePathCheckSummaries)
 	}
 	return collection, nil
 }
@@ -309,37 +309,56 @@ func (c PathCheckSummaryCollection) Subject() Subjects {
 	return subject
 }
 
-func (p Predicate) GetType() string           { return p.Type }
-func (p Predicate) GetPredicate() interface{} { return p.Predicate }
-
-func MakeSingleSubjectStatement(subject Subject, predicateType string, predicate interface{}) SingleSubjectStatement {
-	return SingleSubjectStatement{
-		Predicate: Predicate{
-			Type:      predicateType,
-			Predicate: predicate,
-		},
-		Subject: subject,
+func (a PathCheckSummaryCollection) Compare(b PathCheckSummaryCollection) int {
+	if cmp := slices.Compare(a.Providers, b.Providers); cmp != 0 {
+		return cmp
 	}
+	numGroupsA, numGroupsB := len(a.EntryGroups), len(b.EntryGroups)
+	if numGroupsA > numGroupsB {
+		return +1
+	}
+	if numGroupsA < numGroupsB {
+		return -1
+	}
+	if numGroupsA == 0 && numGroupsB == 0 {
+		return 0
+	}
+
+	for g := range a.EntryGroups {
+		if cmp := comparePathCheckSummariesSlice(a.EntryGroups[g], b.EntryGroups[g]); cmp != 0 {
+			return cmp
+		}
+	}
+
+	return 0
 }
 
-func (s SingleSubjectStatement) GetSubject() Subjects          { return MakeSubjects(s.Subject) }
-func (s SingleSubjectStatement) ExportSubject() []toto.Subject { return s.Subject.Export() }
-func (s SingleSubjectStatement) Export() toto.Statement        { return Export(s) }
-func (s SingleSubjectStatement) EncodeWith(e EncodeFunc) error { return e(s.Export()) }
-
-func (s SingleSubjectStatement) Encode(w io.Writer) error {
-	return s.EncodeWith(json.NewEncoder(w).Encode)
+func comparePathCheckSummariesSlice(a, b []PathCheckSummary) int {
+	if cmp := cmp.Compare(a[0].ProviderName(), b[0].ProviderName()); cmp != 0 {
+		return cmp
+	}
+	return comparePathCheckSummaries(a[0], b[0])
 }
 
-func (s *SingleSubjectStatement) SetSubjects(f func(subject *Subject) error) error {
-	return f(&s.Subject)
+func comparePathCheckSummaries(a, b PathCheckSummary) int {
+	return cmp.Compare(a.Common().Path, b.Common().Path)
 }
 
-func MakeMultiSubjectStatement(subjects Subjects, predicateType string, predicate interface{}) MultiSubjectStatement {
-	statement := MultiSubjectStatement{
-		Predicate: Predicate{
-			Type:      predicateType,
-			Predicate: predicate,
+func (p Predicate[T]) GetType() string   { return p.Type }
+func (p Predicate[T]) GetPredicate() any { return p.ComparablePredicate }
+
+func (p Predicate[T]) Compare(b any) Cmp {
+	if b, ok := b.(Predicate[T]); ok {
+		return p.ComparablePredicate.Compare(b.ComparablePredicate.(T))
+	}
+	return nil
+}
+
+func MakeStatement[T any](predicateType string, predicate ComparablePredicate[T], subjects ...Subject) GenericStatement[T] {
+	statement := GenericStatement[T]{
+		Predicate: Predicate[T]{
+			Type:                predicateType,
+			ComparablePredicate: predicate,
 		},
 		Subjects: subjects,
 	}
@@ -349,20 +368,34 @@ func MakeMultiSubjectStatement(subjects Subjects, predicateType string, predicat
 	return statement
 }
 
-func (s MultiSubjectStatement) GetSubject() Subjects          { return s.Subjects }
-func (s MultiSubjectStatement) ExportSubject() []toto.Subject { return s.Subjects.Export() }
-func (s MultiSubjectStatement) Export() toto.Statement        { return Export(s) }
-func (s MultiSubjectStatement) EncodeWith(e EncodeFunc) error { return e(s.Export()) }
+func (s GenericStatement[T]) GetSubject() Subjects          { return s.Subjects }
+func (s GenericStatement[T]) ExportSubject() []toto.Subject { return s.Subjects.Export() }
+func (s GenericStatement[T]) Export() toto.Statement        { return Export(s) }
+func (s GenericStatement[T]) EncodeWith(e EncodeFunc) error { return e(s.Export()) }
 
-func (s MultiSubjectStatement) Encode(w io.Writer) error {
+func (s GenericStatement[T]) Encode(w io.Writer) error {
 	return s.EncodeWith(json.NewEncoder(w).Encode)
 }
 
-func (s *MultiSubjectStatement) SetSubjects(f func(subject *Subject) error) error {
+func (s *GenericStatement[T]) SetSubjects(f func(subject *Subject) error) error {
 	for i := range s.Subjects {
 		if err := f(&s.Subjects[i]); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (a GenericStatement[T]) Compare(b Statement) Cmp {
+	if cmp := cmp.Compare(a.GetType(), b.GetType()); cmp != 0 {
+		return &cmp
+	}
+	subjectsA, subjectsB := a.GetSubject(), b.GetSubject()
+	if cmp := cmp.Compare(len(subjectsA), len(subjectsB)); cmp != 0 {
+		return &cmp
+	}
+	if cmp := cmp.Compare(subjectsA[0].Name, subjectsB[0].Name); cmp != 0 {
+		return &cmp
+	}
+	return a.Predicate.Compare(b.GetPredicate())
 }
