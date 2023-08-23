@@ -15,7 +15,9 @@ import (
 	// OCIv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-const UserAgent = "tape/v1"
+const (
+	UserAgent = "tape/v1"
+)
 
 type (
 	Metadata   = ociclient.Metadata
