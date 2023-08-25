@@ -35,7 +35,7 @@ const (
 	ContentMediaType = mediaTypePrefix + ".content.v1alpha1.tar+gzip"
 	AttestMediaType  = mediaTypePrefix + ".attest.v1alpha1.jsonl+gzip"
 
-	ContentInterpreterAnnotation   = mediaTypePrefix + "content-interpreter.v1alpha1"
+	ContentInterpreterAnnotation   = mediaTypePrefix + ".content-interpreter.v1alpha1"
 	ContentInterpreterKubectlApply = mediaTypePrefix + ".kubectl-apply.v1alpha1.tar+gzip"
 
 	AttestationsSummaryAnnotations = mediaTypePrefix + ".attestations-summary.v1alpha1"
