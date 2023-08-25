@@ -16,7 +16,6 @@ import (
 	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
-// TODO(attest): provide an attestation for each original file inspected and the image refs found
 type ImageScanner interface {
 	Scan(string, []string) error
 	GetImages() *types.ImageList

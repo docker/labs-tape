@@ -38,7 +38,9 @@ const (
 	ContentInterpreterAnnotation   = mediaTypePrefix + "content-interpreter.v1alpha1"
 	ContentInterpreterKubectlApply = mediaTypePrefix + ".kubectl-apply.v1alpha1.tar+gzip"
 
-	// TODO: content inteprete invocation with an image
+	AttestationsSummaryAnnotations = mediaTypePrefix + ".attestations-summary.v1alpha1"
+
+	// TODO: content interpreter invocation with an image
 
 	regularFileMode = 0o640
 )
@@ -147,14 +149,6 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		configAnnotations,
 	).(v1.Image)
 
-	attest := mutate.Annotations(
-		mutate.ConfigMediaType(
-			mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
-			ConfigMediaType,
-		),
-		indexAnnotations,
-	).(v1.Image)
-
 	// There is an option to use LayerFromReader which will avoid writing any files to disk,
 	// albeit it might impact memory usage and there is no strict security requirement, and
 	// manifests do get written out already anyway.
@@ -172,15 +166,37 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		return "", fmt.Errorf("appeding content to artifact failed: %w", err)
 	}
 
-	attest, err = mutate.Append(attest, mutate.Addendum{Layer: attestLayer})
-	if err != nil {
-		return "", fmt.Errorf("appeding attestations to artifact failed: %w", err)
-	}
-
 	index = mutate.AppendManifests(index,
 		mutate.IndexAddendum{Add: config},
-		mutate.IndexAddendum{Add: attest},
 	)
+
+	if attestLayer != nil {
+		attestAnnotations := maps.Clone(indexAnnotations)
+
+		summary, err := (attestTypes.Statements)(sourceAttestations).MarshalSummaryAnnotation()
+		if err != nil {
+			return "", err
+		}
+		attestAnnotations[AttestationsSummaryAnnotations] = summary
+
+		attest := mutate.Annotations(
+			mutate.ConfigMediaType(
+				mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
+				ConfigMediaType,
+			),
+			attestAnnotations,
+		).(v1.Image)
+
+		attest, err = mutate.Append(attest, mutate.Addendum{Layer: attestLayer})
+		if err != nil {
+			return "", fmt.Errorf("appeding attestations to artifact failed: %w", err)
+		}
+
+		index = mutate.AppendManifests(index,
+			mutate.IndexAddendum{Add: attest},
+		)
+	}
+
 	digest, err := index.Digest()
 	if err != nil {
 		return "", fmt.Errorf("parsing index digest failed: %w", err)
@@ -295,6 +311,9 @@ func (c *Client) BuildArtefact(artifactPath,
 }
 
 func (c *Client) BuildAttestations(statements []attestTypes.Statement) (v1.Layer, error) {
+	if len(statements) == 0 {
+		return nil, nil
+	}
 	output := bytes.NewBuffer(nil)
 	gw := gzip.NewWriter(output)
 

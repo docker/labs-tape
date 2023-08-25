@@ -1,6 +1,8 @@
 package manifest
 
 import (
+	"cmp"
+
 	"github.com/docker/labs-brown-tape/attest/types"
 )
 
@@ -12,7 +14,9 @@ var (
 	_ types.Statement = (*DirContents)(nil)
 )
 
-type DirContents struct{ types.MultiSubjectStatement }
+type DirContents struct {
+	types.GenericStatement[SourceDirectory]
+}
 
 type SourceDirectory struct {
 	Path string `json:"path"`
@@ -22,17 +26,31 @@ type SourceDirectory struct {
 
 func MakeDirContentsStatement(dir string, entries *types.PathCheckSummaryCollection) types.Statement {
 	return &DirContents{
-		types.MakeMultiSubjectStatement(
-			entries.Subject(),
+		types.MakeStatement[SourceDirectory](
 			ManifestDirPredicateType,
 			struct {
-				ContainedInDirectory SourceDirectory `json:"containedInDirectory"`
+				SourceDirectory `json:"containedInDirectory"`
 			}{
 				SourceDirectory{
 					Path:       dir,
 					VCSEntries: entries,
 				},
 			},
+			entries.Subject()...,
 		),
 	}
+}
+
+func (a SourceDirectory) Compare(b SourceDirectory) types.Cmp {
+	if cmp := cmp.Compare(a.Path, b.Path); cmp != 0 {
+		return &cmp
+	}
+	if a.VCSEntries == nil && b.VCSEntries != nil {
+		return types.CmpLess()
+	}
+	if a.VCSEntries != nil && b.VCSEntries == nil {
+		return types.CmpMore()
+	}
+	cmp := a.VCSEntries.Compare(*b.VCSEntries)
+	return &cmp
 }

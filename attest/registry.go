@@ -1,14 +1,17 @@
 package attest
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 
 	"github.com/docker/labs-brown-tape/attest/digest"
 	"github.com/docker/labs-brown-tape/attest/manifest"
 	"github.com/docker/labs-brown-tape/attest/types"
+	"github.com/fxamacker/cbor/v2"
 )
 
 type PathCheckerRegistryKey struct {
@@ -83,6 +86,7 @@ func (r *PathCheckerRegistry) AssociateStatements(statements ...types.Statement)
 		}
 	}
 	r.statements = append(r.statements, statements...)
+
 	return nil
 }
 
@@ -124,10 +128,35 @@ func (r *PathCheckerRegistry) AssociateCoreStatements() error {
 
 func (r *PathCheckerRegistry) EncodeAllAttestations(w io.Writer) error {
 	encoder := json.NewEncoder(w)
-	if err := r.statements.EncodeWith(encoder.Encode); err != nil {
+	if err := r.GetStatements().EncodeWith(encoder.Encode); err != nil {
 		return fmt.Errorf("unable to encode attestations: %w", err)
 	}
 	return nil
+}
+
+func (r *PathCheckerRegistry) GetStatements() types.Statements {
+	slices.SortFunc(r.statements, func(a, b types.Statement) int {
+		if cmp := a.Compare(b); cmp != nil {
+			return *cmp
+		}
+
+		// NB: nil can only be returned if perdicates couldn't be compared,
+		// the statement headers were checked first, are always comparable;
+		// comparison of bytes obtained from encoding is not ideal, but
+		// it's the best we can do as fallback without implementing
+		// comparison for each predicate type
+		// NB: it's also definite that both of these predicates are of the
+		// same type (at least based on the header)
+		bufA, bufB := bytes.NewBuffer(nil), bytes.NewBuffer(nil)
+		if err := cbor.NewEncoder(bufA).Encode(a.GetPredicate()); err != nil {
+			panic(fmt.Sprintf("unexpected error encoding predicate of type %T: %s", a.GetPredicate(), err))
+		}
+		if err := cbor.NewEncoder(bufB).Encode(b.GetPredicate()); err != nil {
+			panic(fmt.Sprintf("unexpected error encoding predicate of type %T: %s", b.GetPredicate(), err))
+		}
+		return bytes.Compare(bufA.Bytes(), bufB.Bytes())
+	})
+	return r.statements
 }
 
 func (r *PathCheckerRegistry) dir() string {

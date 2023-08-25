@@ -8,8 +8,6 @@ import (
 	"github.com/docker/labs-brown-tape/manifest/types"
 )
 
-// TODO(attest): provide an attestation for each new manifest and reference checksum of the original manifest
-
 type Updater interface {
 	Update(*types.ImageList) error
 }

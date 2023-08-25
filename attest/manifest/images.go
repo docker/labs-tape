@@ -1,6 +1,8 @@
 package manifest
 
 import (
+	"cmp"
+
 	attestTypes "github.com/docker/labs-brown-tape/attest/types"
 	manifestTypes "github.com/docker/labs-brown-tape/manifest/types"
 )
@@ -17,11 +19,11 @@ var (
 )
 
 type OriginalImageRef struct {
-	attestTypes.SingleSubjectStatement
+	attestTypes.GenericStatement[ImageRefenceWithLocation]
 }
 
 type ResolvedImageRef struct {
-	attestTypes.SingleSubjectStatement
+	attestTypes.GenericStatement[ImageRefenceWithLocation]
 }
 
 type ImageRefenceWithLocation struct {
@@ -40,12 +42,12 @@ func MakeOriginalImageRefStatements(images *manifestTypes.ImageList) attestTypes
 	statements := attestTypes.Statements{}
 	forEachImage(images, func(subject attestTypes.Subject, ref ImageRefenceWithLocation) {
 		s := &OriginalImageRef{
-			attestTypes.MakeSingleSubjectStatement(
-				subject,
+			attestTypes.MakeStatement(
 				OriginalImageRefPredicateType,
 				struct {
-					FoundImageReference ImageRefenceWithLocation `json:"foundImageReference"`
+					ImageRefenceWithLocation `json:"foundImageReference"`
 				}{ref},
+				subject,
 			),
 		}
 		statements = append(statements, s)
@@ -57,12 +59,12 @@ func MakeResovedImageRefStatements(images *manifestTypes.ImageList) attestTypes.
 	statements := attestTypes.Statements{}
 	forEachImage(images, func(subject attestTypes.Subject, ref ImageRefenceWithLocation) {
 		statements = append(statements, &ResolvedImageRef{
-			attestTypes.MakeSingleSubjectStatement(
-				subject,
+			attestTypes.MakeStatement(
 				ResolvedImageRefPredicateType,
 				struct {
-					ResolvedImageReference ImageRefenceWithLocation `json:"resolvedImageReference"`
+					ImageRefenceWithLocation `json:"resolvedImageReference"`
 				}{ref},
+				subject,
 			),
 		})
 	})
@@ -90,4 +92,17 @@ func forEachImage(images *manifestTypes.ImageList, do func(attestTypes.Subject, 
 			)
 		}
 	}
+}
+
+func (a ImageRefenceWithLocation) Compare(b ImageRefenceWithLocation) attestTypes.Cmp {
+	if cmp := cmp.Compare(a.Reference, b.Reference); cmp != 0 {
+		return &cmp
+	}
+	if cmp := cmp.Compare(a.Line, b.Line); cmp != 0 {
+		return &cmp
+	}
+	if cmp := cmp.Compare(a.Column, b.Column); cmp != 0 {
+		return &cmp
+	}
+	return attestTypes.CmpEqual()
 }
