@@ -53,6 +53,17 @@ type ArtefactInfo struct {
 }
 
 func (c *Client) GetArtefact(ctx context.Context, ref string) (*ArtefactInfo, error) {
+	artefacts, err := c.GetArtefacts(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	if len(artefacts) != 1 {
+		return nil, fmt.Errorf("multiple layers found in image %q", ref)
+	}
+	return artefacts[0], nil
+}
+
+func (c *Client) GetArtefacts(ctx context.Context, ref string) ([]*ArtefactInfo, error) {
 	image, err := c.Pull(ctx, ref)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull %q: %w", ref, err)
@@ -64,28 +75,26 @@ func (c *Client) GetArtefact(ctx context.Context, ref string) (*ArtefactInfo, er
 	if len(manifest.Layers) < 1 {
 		return nil, fmt.Errorf("no layers found in image %q", ref)
 	}
-	if len(manifest.Layers) > 1 {
-		return nil, fmt.Errorf("multiple layers found in image %q", ref)
-	}
-	layerDecriptor := manifest.Layers[0]
+	artefacts := []*ArtefactInfo{}
+	for _, layerDecriptor := range manifest.Layers {
+		layer, err := image.LayerByDigest(layerDecriptor.Digest)
+		if err != nil {
+			return nil, fmt.Errorf("fetching aretefact image failed: %w", err)
+		}
 
-	layer, err := image.LayerByDigest(layerDecriptor.Digest)
-	if err != nil {
-		return nil, fmt.Errorf("fetching aretefact image failed: %w", err)
-	}
+		blob, err := layer.Uncompressed()
+		if err != nil {
+			return nil, fmt.Errorf("extracting uncompressed aretefact image failed: %w", err)
+		}
 
-	blob, err := layer.Uncompressed()
-	if err != nil {
-		return nil, fmt.Errorf("extracting uncompressed aretefact image failed: %w", err)
+		info := &ArtefactInfo{
+			ReadCloser:  blob,
+			MediaType:   layerDecriptor.MediaType,
+			Annotations: layerDecriptor.Annotations,
+		}
+		artefacts = append(artefacts, info)
 	}
-
-	info := &ArtefactInfo{
-		ReadCloser:  blob,
-		MediaType:   layerDecriptor.MediaType,
-		Annotations: layerDecriptor.Annotations,
-	}
-
-	return info, nil
+	return artefacts, nil
 }
 
 // based on https://github.com/fluxcd/pkg/blob/2a323d771e17af02dee2ccbbb9b445b78ab048e5/oci/client/push.go

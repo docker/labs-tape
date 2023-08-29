@@ -46,7 +46,7 @@ type imageInfo struct {
 	Sources        []types.Source
 	InlineAttestations,
 	ExternalAttestations,
-	InlineSBOMs, // TODO: implement
+	InlineSBOMs,
 	ExternalSBOMs,
 	InlineSignatures, // TODO: implement
 	ExternalSignatures map[string]document
@@ -166,25 +166,33 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 			}
 
 			ref := image.OriginalName + "@" + digest
-			artefact, err := client.GetArtefact(ctx, ref)
+			artefacts, err := client.GetArtefacts(ctx, ref)
 			if err != nil {
 				return fmt.Errorf("failed to fetch inline attestation: %w", err)
 			}
 
-			if artefact.MediaType != "application/vnd.in-toto+json" {
-				return fmt.Errorf("unexpected media type of attestation in %q: %s", ref, artefact.MediaType)
-			}
+			for _, artefact := range artefacts {
+				if artefact.MediaType != "application/vnd.in-toto+json" {
+					return fmt.Errorf("unexpected media type of attestation in %q: %s", ref, artefact.MediaType)
+				}
 
-			doc := document{
-				MediaType: string(artefact.MediaType),
-				Object:    &in_toto.Statement{},
-			}
+				doc := document{
+					MediaType: string(artefact.MediaType),
+					Object:    &in_toto.Statement{},
+				}
 
-			if err := json.NewDecoder(artefact).Decode(doc.Object); err != nil {
-				return fmt.Errorf("failed to unmarshal attestation: %w", err)
+				if err := json.NewDecoder(artefact).Decode(doc.Object); err != nil {
+					return fmt.Errorf("failed to unmarshal attestation: %w", err)
+				}
+				if predicateType, ok := artefact.Annotations["in-toto.io/predicate-type"]; ok {
+					switch predicateType {
+					case "https://spdx.dev/Document":
+						info.InlineSBOMs[subject] = doc
+					default:
+						info.InlineAttestations[subject] = doc
+					}
+				}
 			}
-
-			info.InlineAttestations[subject] = doc
 		}
 
 		outputInfo[image.Ref(true)] = info
