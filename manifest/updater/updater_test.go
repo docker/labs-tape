@@ -105,7 +105,7 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 						if expectedImage.Digest == image.Digest &&
 							expectedImage.NewName == image.OriginalName &&
 							expectedImage.NewTag == image.OriginalTag {
-							g.Expect(image.ManifestDigest).ToNot(Equal(expectedImage.ManifestDigest))
+							g.Expect(image.ManifestDigest()).ToNot(Equal(expectedImage.ManifestDigest()))
 							matched.Append(image)
 						}
 					}

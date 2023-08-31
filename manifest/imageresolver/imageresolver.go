@@ -70,11 +70,10 @@ func (c *RegistryResolver) FindRelatedTags(ctx context.Context, images *types.Im
 				return nil, fmt.Errorf("related image %s has no digest", relatedImage.URL)
 			}
 			name, tag, _ := kimage.Split(relatedImage.URL)
-
 			err := result.AppendWithRelationTo(image, types.Image{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					OriginalRef: relatedImage.URL,
-				},
+				}},
 				OriginalName: name,
 				OriginalTag:  tag,
 				Digest:       relatedImage.Digest,
@@ -107,9 +106,9 @@ func (c *RegistryResolver) FindRelatedFromIndecies(ctx context.Context, images *
 				}
 			}
 			err := manifests.AppendWithRelationTo(image, types.Image{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					OriginalRef: image.OriginalName,
-				},
+				}},
 				OriginalName: image.OriginalName,
 				Digest:       manifest.Digest.String(),
 			})

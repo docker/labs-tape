@@ -38,8 +38,7 @@ func makeImageScannerTest(tc testdata.TestCase) func(t *testing.T) {
 		images := scanner.GetImages()
 
 		for _, image := range images.Items() {
-			g.Expect(image.Source).ToNot(BeNil())
-			g.Expect(image.Sources).To(BeEmpty())
+			g.Expect(image.Sources).To(HaveLen(1))
 		}
 
 		if tc.Expected != nil {

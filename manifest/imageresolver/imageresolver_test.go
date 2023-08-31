@@ -69,7 +69,6 @@ func makeImageResolverTest(tc testdata.TestCase) func(t *testing.T) {
 			}
 		}
 		for _, image := range images.Items() {
-			g.Expect(image.Source).To(BeNil())
 			g.Expect(image.Sources).ToNot(BeEmpty())
 		}
 	}

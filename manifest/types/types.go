@@ -20,8 +20,6 @@ const (
 
 type (
 	Image struct {
-		// TODO: are two fields really needed? it would make sense if it was just the slice
-		*Source
 		Sources []Source
 
 		OriginalName string
@@ -67,7 +65,7 @@ func NewImageList(dir string) *ImageList {
 func (l *ImageList) Paths() []string {
 	paths := make([]string, len(l.items))
 	for i := range l.items {
-		paths[i] = filepath.Join(l.dir, l.items[i].Manifest)
+		paths[i] = filepath.Join(l.dir, l.items[i].Manifest())
 	}
 	return paths
 }
@@ -92,17 +90,6 @@ func (l *ImageList) AppendWithRelationTo(target, image Image) error {
 	l.Append(image)
 	return nil
 }
-
-// func (l *ImageList) IsRelated(key, target string) bool {
-// 	if l.relationEntries == nil {
-// 		return false
-// 	}
-// 	v, ok := l.relationEntries[key]
-// 	if !ok {
-// 		return false
-// 	}
-// 	return v == target
-// }
 
 func (l *ImageList) RelatedTo(ref string) []string {
 	results := []string{}
@@ -154,12 +141,13 @@ func (l *ImageList) Dedup() error {
 	l.dedupeLock.Do(func() {
 		unique := map[key]Image{}
 		for _, image := range l.items {
-			sources := []Source{*image.Source}
-			existing, present := unique[key{image.OriginalRef, image.Digest}]
+			sources := slices.Clone(image.Sources)
+			k := key{image.OriginalRef(), image.Digest}
+			existing, present := unique[k]
 			if present {
 				sources = append(sources, existing.Sources...)
 			}
-			unique[key{image.OriginalRef, image.Digest}] = Image{
+			unique[k] = Image{
 				Sources:      sources,
 				OriginalTag:  image.OriginalTag,
 				OriginalName: image.OriginalName,
@@ -173,17 +161,21 @@ func (l *ImageList) Dedup() error {
 		for _, v := range unique {
 			if len(v.Sources) > 1 {
 				slices.SortFunc(v.Sources, func(a, b Source) int {
-					if namewise := cmp.Compare(a.Manifest, b.Manifest); namewise != 0 {
-						return namewise
+					if cmp := cmp.Compare(a.Manifest, b.Manifest); cmp != 0 {
+						return cmp
 					}
-					if linewise := cmp.Compare(a.Line, b.Line); linewise != 0 {
-						return linewise
+					if cmp := cmp.Compare(a.Line, b.Line); cmp != 0 {
+						return cmp
 					}
-					return cmp.Compare(a.Column, b.Column)
+					if cmp := cmp.Compare(a.Column, b.Column); cmp != 0 {
+						return cmp
+					}
+					return 0
 				})
 			}
 			l.items = append(l.items, v)
 		}
+
 	})
 	return nil
 }
@@ -210,20 +202,15 @@ func (l *ImageList) GroupByManifest() map[string]*ImageList {
 	}
 	for i := range l.items {
 		item := l.items[i]
-		if item.Source != nil {
-			addItem(item.Source.Manifest, item)
-		}
-		if len(item.Sources) > 0 {
-			for _, source := range item.Sources {
-				addItem(source.Manifest, Image{
-					Sources:      []Source{source},
-					OriginalName: item.OriginalName,
-					OriginalTag:  item.OriginalTag,
-					Digest:       item.Digest,
-					NewName:      item.NewName,
-					NewTag:       item.NewTag,
-				})
-			}
+		for _, source := range item.Sources {
+			addItem(source.Manifest, Image{
+				Sources:      []Source{source},
+				OriginalName: item.OriginalName,
+				OriginalTag:  item.OriginalTag,
+				Digest:       item.Digest,
+				NewName:      item.NewName,
+				NewTag:       item.NewTag,
+			})
 		}
 	}
 	return groups
@@ -247,6 +234,17 @@ func (i Image) Ref(original bool) string {
 	}
 	return ref
 }
+
+func (i Image) primarySource() *Source {
+	if len(i.Sources) == 0 {
+		panic("unextected empty image sources")
+	}
+	return &i.Sources[0]
+}
+
+func (i Image) Manifest() string              { return i.primarySource().Manifest }
+func (i Image) ManifestDigest() digest.SHA256 { return i.primarySource().ManifestDigest }
+func (i Image) OriginalRef() string           { return i.primarySource().OriginalRef }
 
 func ImagePaths() []kustomize.FieldSpec {
 	return []kustomize.FieldSpec{
