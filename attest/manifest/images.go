@@ -27,9 +27,10 @@ type ResolvedImageRef struct {
 }
 
 type ImageRefenceWithLocation struct {
-	Reference string `json:"reference"`
-	Line      int    `json:"line"`
-	Column    int    `json:"column"`
+	Reference string  `json:"reference"`
+	Line      int     `json:"line"`
+	Column    int     `json:"column"`
+	Alias     *string `json:"alias,omitempty"`
 }
 
 // TODO:
@@ -83,6 +84,7 @@ func forEachImage(images *manifestTypes.ImageList, do func(attestTypes.Subject, 
 					Reference: image.Ref(true),
 					Line:      source.Line,
 					Column:    source.Column,
+					Alias:     image.Alias,
 				},
 			)
 		}
