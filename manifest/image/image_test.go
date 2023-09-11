@@ -12,8 +12,7 @@ func TestDedup(t *testing.T) {
 	g := NewWithT(t)
 
 	cases := []struct {
-		image string
-		alias string
+		image, alias string
 	}{
 		{image: "example.com/a1/bar/foo:f@sha256:foo1", alias: "bar/foo"},
 		{image: "example.io/b1/baz/foo:v1@sha256:foo1", alias: "baz/foo"},

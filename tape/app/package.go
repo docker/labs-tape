@@ -24,7 +24,8 @@ import (
 type TapePackageCommand struct {
 	CommonOptions
 
-	OutputImage string `short:"O" long:"output-image" description:"Name of the output image" required:"true"`
+	WithImages  map[string]string `short:"I" long:"with-images" required:"false" description:"Names of new images to use instead of what specified in the manifests"`
+	OutputImage string            `short:"O" long:"output-image" required:"true" description:"Name of the taped image to push"`
 
 	// TODO: implement
 	Push bool `short:"P" long:"push" description:"Push the resulting image to the registry"`
