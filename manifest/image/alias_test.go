@@ -15,68 +15,23 @@ func TestMakeAliasesForNames(t *testing.T) {
 		alias string
 	}{
 		{
-			{
-				alias: "bar/foo",
-				image: "example.com/a1/bar/foo",
-			},
-			{
-				alias: "foo1",
-				image: "example.com/a1/bar/foo1",
-			},
-			{
-				alias: "baz/foo",
-				image: "example.io/b1/baz/foo",
-			},
-			{
-				alias: "baz/foo",
-				image: "example.io/b1/baz/foo",
-			},
-			{
-				alias: "f1/foo",
-				image: "example.com/f1/foo",
-			},
-			{
-				alias: "f2/foo",
-				image: "example.io/f2/foo",
-			},
-			{
-				alias: "foo",
-				image: "foo",
-			},
-			{
-				alias: "example.io/b2/barfoo",
-				image: "example.io/b2/barfoo",
-			},
-			{
-				alias: "example.sh/b2/barfoo",
-				image: "example.sh/b2/barfoo",
-			},
-			{
-				alias: "b1/barfoo",
-				image: "example.io/b1/barfoo",
-			},
+			{image: "example.com/a1/bar/foo", alias: "bar/foo"},
+			{image: "example.com/a1/bar/foo1", alias: "foo1"},
+			{image: "example.io/b1/baz/foo", alias: "baz/foo"},
+			{image: "example.io/b1/baz/foo", alias: "baz/foo"},
+			{image: "example.com/f1/foo", alias: "f1/foo"},
+			{image: "example.io/f2/foo", alias: "f2/foo"},
+			{image: "foo", alias: "foo"},
+			{image: "example.io/b2/barfoo", alias: "example.io/b2/barfoo"},
+			{image: "example.sh/b2/barfoo", alias: "example.sh/b2/barfoo"},
+			{image: "example.io/b1/barfoo", alias: "b1/barfoo"},
 		},
 		{
-			{
-				alias: "b1/barfoo",
-				image: "example.io/b1/barfoo",
-			},
-			{
-				alias: "x/barfoo",
-				image: "example.io/b1/x/barfoo",
-			},
-			{
-				alias: "baz/foo",
-				image: "example.io/b1/baz/foo",
-			},
-			{
-				alias: "baz",
-				image: "example.io/b1/foo/baz",
-			},
-			{
-				alias: "b1/foo",
-				image: "example.io/b1/foo",
-			},
+			{image: "example.io/b1/barfoo", alias: "b1/barfoo"},
+			{image: "example.io/b1/x/barfoo", alias: "x/barfoo"},
+			{image: "example.io/b1/baz/foo", alias: "baz/foo"},
+			{image: "example.io/b1/foo/baz", alias: "baz"},
+			{image: "example.io/b1/foo", alias: "b1/foo"},
 		},
 		{
 			{image: "foo", alias: "foo"},
