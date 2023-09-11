@@ -27,9 +27,10 @@ type ResolvedImageRef struct {
 }
 
 type ImageRefenceWithLocation struct {
-	Reference string `json:"reference"`
-	Line      int    `json:"line"`
-	Column    int    `json:"column"`
+	Reference string  `json:"reference"`
+	Line      int     `json:"line"`
+	Column    int     `json:"column"`
+	Alias     *string `json:"alias,omitempty"`
 }
 
 // TODO:
@@ -73,12 +74,7 @@ func MakeResovedImageRefStatements(images *manifestTypes.ImageList) attestTypes.
 
 func forEachImage(images *manifestTypes.ImageList, do func(attestTypes.Subject, ImageRefenceWithLocation)) {
 	for _, image := range images.Items() {
-		// TODO: drop image.Source and always use image.Sources instead
-		sources := image.Sources
-		if sources == nil && image.Source != nil {
-			sources = []manifestTypes.Source{*image.Source}
-		}
-		for _, source := range sources {
+		for _, source := range image.Sources {
 			do(
 				attestTypes.Subject{
 					Name:   source.Manifest,
@@ -88,6 +84,7 @@ func forEachImage(images *manifestTypes.ImageList, do func(attestTypes.Subject, 
 					Reference: image.Ref(true),
 					Line:      source.Line,
 					Column:    source.Column,
+					Alias:     image.Alias,
 				},
 			)
 		}

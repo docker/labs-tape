@@ -86,7 +86,7 @@ func (s *DefaultImageScanner) GetImages() *types.ImageList {
 		for _, vv := range v.SetValueArgs() {
 			name, tag, digest := kimage.Split(vv.Value)
 			images.Append(types.Image{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       v.Manifest,
 						ManifestDigest: v.ManifestDigest,
@@ -95,7 +95,7 @@ func (s *DefaultImageScanner) GetImages() *types.ImageList {
 						Column:         vv.Column,
 					},
 					OriginalRef: vv.Value,
-				},
+				}},
 				OriginalName: name,
 				OriginalTag:  tag,
 				Digest:       digest,

@@ -42,6 +42,7 @@ type document struct {
 
 type imageInfo struct {
 	Ref            string
+	Alias          *string
 	DigestProvided bool
 	Sources        []types.Source
 	InlineAttestations,
@@ -127,6 +128,7 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 		_, digestProvided := withDigests[image.Digest]
 		outputInfo[image.Ref(true)] = imageInfo{
 			Ref:                  image.Ref(true),
+			Alias:                image.Alias,
 			DigestProvided:       digestProvided,
 			Sources:              image.Sources,
 			InlineAttestations:   map[string]document{},
@@ -378,6 +380,10 @@ func (c *TapeImagesCommand) PrintInfo(ctx context.Context, outputInfo map[string
 		case OutputFormatText, OutputFormatDetailedText:
 			// TODO: make this a method of the struct, perhaps use a tag for description
 			fmt.Printf("%s\n", info.Ref)
+			if info.Alias != nil {
+				fmt.Printf("  Alias: %s\n", *info.Alias)
+
+			}
 			fmt.Printf("  Sources:\n")
 			for _, source := range info.Sources {
 				fmt.Printf("    %s %s:%d:%d@sha256:%s\n", source.OriginalRef, source.Manifest, source.Line, source.Column, source.ManifestDigest)

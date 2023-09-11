@@ -53,7 +53,8 @@ func (r *RegistryResolver) doResolveDigest(ctx context.Context, i *types.Image) 
 }
 
 func (c *RegistryResolver) FindRelatedTags(ctx context.Context, images *types.ImageList) (*types.ImageList, error) {
-	// TODO: reduce redudant calls to registry, e.g. when multiple images have the same name
+	// TODO: reduce redudant calls to registry, e.g. when multiple images have the same name;
+	// `images.Dedup()` doens't address this as it requires registry call, so proper registry cache is needed
 	result := types.NewImageList(images.Dir())
 	for i := range images.Items() {
 		image := images.Items()[i]
@@ -70,11 +71,10 @@ func (c *RegistryResolver) FindRelatedTags(ctx context.Context, images *types.Im
 				return nil, fmt.Errorf("related image %s has no digest", relatedImage.URL)
 			}
 			name, tag, _ := kimage.Split(relatedImage.URL)
-
 			err := result.AppendWithRelationTo(image, types.Image{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					OriginalRef: relatedImage.URL,
-				},
+				}},
 				OriginalName: name,
 				OriginalTag:  tag,
 				Digest:       relatedImage.Digest,
@@ -107,9 +107,9 @@ func (c *RegistryResolver) FindRelatedFromIndecies(ctx context.Context, images *
 				}
 			}
 			err := manifests.AppendWithRelationTo(image, types.Image{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					OriginalRef: image.OriginalName,
-				},
+				}},
 				OriginalName: image.OriginalName,
 				Digest:       manifest.Digest.String(),
 			})

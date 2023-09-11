@@ -40,7 +40,7 @@ func BasicJSONCases() TestCases {
 		},
 		Expected: []types.Image{
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "list.json",
 						ManifestDigest: "577caeee80cfa690caf25bcdd4b1919b99d2860eb351c48e81b46b9e4b52aea5",
@@ -49,11 +49,11 @@ func BasicJSONCases() TestCases {
 						Column:         34,
 					},
 					OriginalRef: "nginx",
-				},
+				}},
 				OriginalName: "nginx",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "list.json",
 						ManifestDigest: "577caeee80cfa690caf25bcdd4b1919b99d2860eb351c48e81b46b9e4b52aea5",
@@ -62,11 +62,11 @@ func BasicJSONCases() TestCases {
 						Column:         42,
 					},
 					OriginalRef: "redis",
-				},
+				}},
 				OriginalName: "redis",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "list.json",
 						ManifestDigest: "577caeee80cfa690caf25bcdd4b1919b99d2860eb351c48e81b46b9e4b52aea5",
@@ -75,11 +75,11 @@ func BasicJSONCases() TestCases {
 						Column:         42,
 					},
 					OriginalRef: "redis",
-				},
+				}},
 				OriginalName: "redis",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "deployment.json",
 						ManifestDigest: "8d85ce5a5de4085bb841cee0402022fcd03f86606a67d572e62012ce4420668c",
@@ -88,7 +88,7 @@ func BasicJSONCases() TestCases {
 						Column:         16,
 					},
 					OriginalRef: "nginx:1.16.1",
-				},
+				}},
 				OriginalName: "nginx",
 				OriginalTag:  "1.16.1",
 			},
@@ -118,7 +118,7 @@ var baseYAMLCases = []TestCase{
 		NumRelatedTags: 0,
 		Expected: []types.Image{
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "02-job-certgen.yaml",
 						ManifestDigest: "ba03dc02890e0ca080f12f03fd06a1d4f6b76ff75be0346ee27c9aa73c6d1d31",
@@ -127,12 +127,12 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "ghcr.io/projectcontour/contour:v1.24.1",
-				},
+				}},
 				OriginalName: "ghcr.io/projectcontour/contour",
 				OriginalTag:  "v1.24.1",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "03-contour.yaml",
 						ManifestDigest: "a9de49647bab938407cb76c29f6b9465690bedb0b99a10736136f982d349d928",
@@ -141,12 +141,12 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "ghcr.io/projectcontour/contour:v1.24.1",
-				},
+				}},
 				OriginalName: "ghcr.io/projectcontour/contour",
 				OriginalTag:  "v1.24.1",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "03-envoy.yaml",
 						ManifestDigest: "e83cd3f98ddbbd91374511c8ce1e437d938ffc8ea8d50bc6d4ccdbf224e53ed4",
@@ -155,12 +155,12 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "ghcr.io/projectcontour/contour:v1.24.1",
-				},
+				}},
 				OriginalName: "ghcr.io/projectcontour/contour",
 				OriginalTag:  "v1.24.1",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "03-envoy.yaml",
 						ManifestDigest: "e83cd3f98ddbbd91374511c8ce1e437d938ffc8ea8d50bc6d4ccdbf224e53ed4",
@@ -169,12 +169,12 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "docker.io/envoyproxy/envoy:v1.25.1",
-				},
+				}},
 				OriginalName: "docker.io/envoyproxy/envoy",
 				OriginalTag:  "v1.25.1",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "03-envoy.yaml",
 						ManifestDigest: "e83cd3f98ddbbd91374511c8ce1e437d938ffc8ea8d50bc6d4ccdbf224e53ed4",
@@ -183,7 +183,7 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "ghcr.io/projectcontour/contour:v1.24.1",
-				},
+				}},
 				OriginalName: "ghcr.io/projectcontour/contour",
 				OriginalTag:  "v1.24.1",
 			},
@@ -199,7 +199,7 @@ var baseYAMLCases = []TestCase{
 		NumRelatedTags: 2,
 		Expected: []types.Image{
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "flux.yaml",
 						ManifestDigest: "39ad63101dbb2ead069ca6185bd44f99f52b8513682d6002109c9b0db23f73b5",
@@ -208,12 +208,12 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "ghcr.io/fluxcd/kustomize-controller:v0.30.0",
-				},
+				}},
 				OriginalName: "ghcr.io/fluxcd/kustomize-controller",
 				OriginalTag:  "v0.30.0",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "flux.yaml",
 						ManifestDigest: "39ad63101dbb2ead069ca6185bd44f99f52b8513682d6002109c9b0db23f73b5",
@@ -222,7 +222,7 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "ghcr.io/fluxcd/source-controller:v0.31.0",
-				},
+				}},
 				OriginalName: "ghcr.io/fluxcd/source-controller",
 				OriginalTag:  "v0.31.0",
 			},
@@ -242,7 +242,7 @@ var baseYAMLCases = []TestCase{
 		NumRelatedTags: 6,
 		Expected: []types.Image{
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "base/tekton-base.yaml",
 						ManifestDigest: "c2cbc6d7a3c30f99e2e504d5758d8e0ce140a8f444c4d944d85c3f29800bf8c5",
@@ -251,13 +251,13 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/controller:v0.40.2@sha256:dc7bc7d6607466b502d8dc22ba0598461d7477f608ab68aaff1ff4dedaa04f81",
-				},
+				}},
 				OriginalName: "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/controller",
 				OriginalTag:  "v0.40.2",
 				Digest:       "sha256:dc7bc7d6607466b502d8dc22ba0598461d7477f608ab68aaff1ff4dedaa04f81",
 			},
 			{
-				Source: &types.Source{
+				Sources: []types.Source{{
 					ImageSourceLocation: types.ImageSourceLocation{
 						Manifest:       "base/tekton-base.yaml",
 						ManifestDigest: "c2cbc6d7a3c30f99e2e504d5758d8e0ce140a8f444c4d944d85c3f29800bf8c5",
@@ -266,7 +266,7 @@ var baseYAMLCases = []TestCase{
 						Column:         16,
 					},
 					OriginalRef: "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/webhook:v0.40.2@sha256:6b8aadbdcede63969ecb719e910b55b7681d87110fc0bf92ca4ee943042f620b",
-				},
+				}},
 				OriginalName: "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/webhook",
 				OriginalTag:  "v0.40.2",
 				Digest:       "sha256:6b8aadbdcede63969ecb719e910b55b7681d87110fc0bf92ca4ee943042f620b",
@@ -292,10 +292,10 @@ func BaseYAMLCasesWithDigests(t *testing.T) TestCases {
 	baseCases := make([]TestCase, len(baseYAMLCases))
 	for i, c := range baseYAMLCases {
 		for e := range c.Expected {
-			if digest, ok := baseCasesDigests[c.Expected[e].OriginalRef]; ok {
+			if digest, ok := baseCasesDigests[c.Expected[e].OriginalRef()]; ok {
 				c.Expected[e].Digest = digest
 			} else if c.Expected[e].Digest == "" {
-				t.Logf("digest not found for %s", c.Expected[e].OriginalRef)
+				t.Logf("digest not found for %s", c.Expected[e].OriginalRef())
 				t.FailNow()
 			}
 		}
