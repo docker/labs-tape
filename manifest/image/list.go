@@ -141,13 +141,16 @@ func (l *ImageList) Dedup() error {
 		}
 	})
 
+	l.MakeAliases()
+
+	return nil
+}
+
+func (l *ImageList) MakeAliases() {
 	aliases := NewAliasCache(l.items).MakeAliasesForNames()
-	// TODO: check uniqueness of aliases, use tags and/or digests to disambiguate
 	for i := range aliases {
 		l.items[i].Alias = &aliases[i]
 	}
-
-	return nil
 }
 
 func (l *ImageList) Len() int { return len(l.items) }

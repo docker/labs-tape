@@ -70,6 +70,8 @@ func makeUpdaterTest(tc testdata.TestCase) func(t *testing.T) {
 
 		g.Expect(NewFileUpdater().Update(images)).To(Succeed())
 
+		images.MakeAliases()
+
 		if tc.Expected != nil {
 			g.Expect(images.Items()).To(ConsistOf(tc.Expected))
 		} else {

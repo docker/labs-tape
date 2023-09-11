@@ -63,6 +63,8 @@ func makeImageCopierTest(tc testdata.TestCase) func(t *testing.T) {
 
 		SetNewImageRefs(makeDestination(tc.Description), sha256.New(), tc.Expected)
 
+		images.MakeAliases()
+
 		if tc.Expected != nil {
 			g.Expect(images.Items()).To(ConsistOf(tc.Expected))
 		} else {
