@@ -1,6 +1,7 @@
 package image_test
 
 import (
+	"math/rand"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -114,13 +115,17 @@ func TestMakeAliasesForNames(t *testing.T) {
 
 	g := NewWithT(t)
 
+	// shuffle cases to ensure that the alising is not dependent on the order
+	rand.Shuffle(len(cases), func(i, j int) {
+		cases[i], cases[j] = cases[j], cases[i]
+	})
+
 	for c := range cases {
 		images := make([]string, len(cases[c]))
 		for i := range cases[c] {
 			images[i] = cases[c][i].image
 		}
 
-		// TODO: shuffle images to ensure aliases are not biased based on order
 		aliases := NewAliasCache(images).MakeAliasesForNames()
 		for i := range cases[c] {
 			g.Expect(aliases[i]).To(Equal(cases[c][i].alias))

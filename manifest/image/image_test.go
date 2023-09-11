@@ -1,6 +1,7 @@
 package image
 
 import (
+	"math/rand"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -14,31 +15,12 @@ func TestDedup(t *testing.T) {
 		image string
 		alias string
 	}{
-		{
-			alias: "bar/foo",
-			image: "example.com/a1/bar/foo:f@sha256:foo1",
-		},
-		{
-			alias: "baz/foo",
-			image: "example.io/b1/baz/foo:v1@sha256:foo1",
-		},
-		{
-			alias: "baz/foo",
-			image: "example.io/b1/baz/foo@sha256:foo1",
-		},
-
-		{
-			alias: "example.com/f1/foo",
-			image: "example.com/f1/foo@sha256:foo2",
-		},
-		{
-			alias: "example.io/f1/foo",
-			image: "example.io/f1/foo@sha256:foo3",
-		},
-		{
-			alias: "foo",
-			image: "foo@sha256:foo4",
-		},
+		{image: "example.com/a1/bar/foo:f@sha256:foo1", alias: "bar/foo"},
+		{image: "example.io/b1/baz/foo:v1@sha256:foo1", alias: "baz/foo"},
+		{image: "example.io/b1/baz/foo@sha256:foo1", alias: "baz/foo"},
+		{image: "example.com/f1/foo@sha256:foo2", alias: "example.com/f1/foo"},
+		{image: "example.io/f1/foo@sha256:foo3", alias: "example.io/f1/foo"},
+		{image: "foo@sha256:foo4", alias: "foo"},
 
 		// {
 		// 	alias:  "example.io/b2/barfoo@sha256:barfoo1",
@@ -55,15 +37,14 @@ func TestDedup(t *testing.T) {
 		// 	image:  "example.io/b2/barfoo",
 		// 	digest: "barfoo1",
 		// },
-		{
-			alias: "b1/barfoo",
-			image: "example.io/b1/barfoo@sha256:barfoo3",
-		},
-		{
-			alias: "x/barfoo",
-			image: "example.io/b1/x/barfoo:latest@sha256:barfoo4",
-		},
+		{image: "example.io/b1/barfoo@sha256:barfoo3", alias: "b1/barfoo"},
+		{image: "example.io/b1/x/barfoo:latest@sha256:barfoo4", alias: "x/barfoo"},
 	}
+
+	// shuffle cases to ensure that the alising is not dependent on the order
+	rand.Shuffle(len(cases), func(i, j int) {
+		cases[i], cases[j] = cases[j], cases[i]
+	})
 
 	list := NewImageList("")
 
