@@ -41,6 +41,8 @@ func makeImageResolverTest(tc testdata.TestCase) func(t *testing.T) {
 		resolver := NewRegistryResolver(nil)
 		g.Expect(resolver.ResolveDigests(ctx, images)).To(Succeed())
 
+		images.MakeAliases()
+
 		if tc.Expected != nil {
 			g.Expect(images.Items()).To(ConsistOf(tc.Expected))
 		} else {

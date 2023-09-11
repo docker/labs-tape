@@ -282,6 +282,15 @@ var baseCasesDigests = map[string]string{
 	"ghcr.io/fluxcd/source-controller:v0.31.0":    "sha256:1e0b062d5129a462250eb03c5e8bd09b4cc42e88b25e39e35eee81d7ed2d15c0",
 }
 
+var baseCasesAliases = map[string]string{
+	"ghcr.io/projectcontour/contour:v1.24.1":      "contour",
+	"docker.io/envoyproxy/envoy:v1.25.1":          "envoy",
+	"ghcr.io/fluxcd/kustomize-controller:v0.30.0": "kustomize-controller",
+	"ghcr.io/fluxcd/source-controller:v0.31.0":    "source-controller",
+	"gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/webhook:v0.40.2@sha256:6b8aadbdcede63969ecb719e910b55b7681d87110fc0bf92ca4ee943042f620b":    "webhook",
+	"gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/controller:v0.40.2@sha256:dc7bc7d6607466b502d8dc22ba0598461d7477f608ab68aaff1ff4dedaa04f81": "controller",
+}
+
 func BaseYAMLCases() TestCases {
 	baseCases := make([]TestCase, len(baseYAMLCases))
 	copy(baseCases, baseYAMLCases)
@@ -296,6 +305,12 @@ func BaseYAMLCasesWithDigests(t *testing.T) TestCases {
 				c.Expected[e].Digest = digest
 			} else if c.Expected[e].Digest == "" {
 				t.Logf("digest not found for %s", c.Expected[e].OriginalRef())
+				t.FailNow()
+			}
+			if alias, ok := baseCasesAliases[c.Expected[e].OriginalRef()]; ok {
+				c.Expected[e].Alias = &alias
+			} else if c.Expected[e].Alias == nil {
+				t.Logf("alias not found for %s", c.Expected[e].OriginalRef())
 				t.FailNow()
 			}
 		}
