@@ -37,21 +37,22 @@ func NewAliasCache[T imageList](imageNames T) AliasCache {
 type AliasCache []*imageName
 
 func (l AliasCache) Match(name string) (string, []string, bool) {
+	candidates := []string{}
+
 	for i := range l {
-		if l[i].shortest() == name {
-			return l[i].join(), nil, true
-		}
-		if l[i].join() == name {
-			return l[i].join(), nil, true
+		switch name {
+		case l[i].join(), l[i].longest():
+			candidates = append(candidates, l[i].longest())
 		}
 	}
 
-	candidates := []string{}
-	parts := strings.Split(name, separator)
-	for i := range l {
-		for j := range l[i].parts {
-			if slices.Compare(l[i].parts[j:], parts) == 0 {
-				candidates = append(candidates, l[i].join())
+	if len(candidates) == 0 {
+		parts := strings.Split(name, separator)
+		for i := range l {
+			for j := range l[i].parts {
+				if slices.Compare(l[i].parts[j:], parts) == 0 {
+					candidates = append(candidates, l[i].longest())
+				}
 			}
 		}
 	}
@@ -127,6 +128,7 @@ type imageName struct {
 }
 
 func (i *imageName) shortest() string { return i.parts[i.last] }
+func (i *imageName) longest() string  { return strings.Join(i.parts, separator) }
 func (i *imageName) join() string     { return strings.Join(i.parts[i.current:], separator) }
 
 func (i *imageName) extendable() bool { return i.current > 0 }
