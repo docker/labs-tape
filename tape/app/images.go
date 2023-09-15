@@ -23,7 +23,8 @@ import (
 )
 
 type TapeImagesCommand struct {
-	CommonOptions
+	tape *TapeCommand
+	InputManifestDirOptions
 }
 
 type imageManifest struct {

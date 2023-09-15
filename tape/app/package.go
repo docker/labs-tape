@@ -22,13 +22,14 @@ import (
 )
 
 type TapePackageCommand struct {
-	CommonOptions
+	tape *TapeCommand
+	InputManifestDirOptions
 
-	WithImages  map[string]string `short:"I" long:"with-images" required:"false" description:"Names of new images to use instead of what specified in the manifests"`
-	OutputImage string            `short:"O" long:"output-image" required:"true" description:"Name of the taped image to push"`
+	// WithImages  map[string]string `short:"I" long:"with-images" required:"false" description:"Names of new images to use instead of what specified in the manifests"`
+	OutputImage string `short:"O" long:"output-image" required:"true" description:"Name of the image to push"`
 
 	// TODO: implement
-	Push bool `short:"P" long:"push" description:"Push the resulting image to the registry"`
+	// Push bool `short:"P" long:"push" description:"Push the resulting image to the registry"`
 }
 
 func (c *TapePackageCommand) ValidateFlags() error {

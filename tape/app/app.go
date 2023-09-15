@@ -27,10 +27,12 @@ type TapeCommand struct {
 	ctx context.Context
 }
 
-type CommonOptions struct {
-	ManifestDir string `short:"D" long:"manifest-dir" description:"Directory containing manifests" required:"true"`
+type InputManifestDirOptions struct {
+	ManifestDir string `short:"D" long:"manifest-dir" description:"Intput directory to read manifests from" required:"true"`
+}
 
-	tape *TapeCommand
+type OutputManifestDirOptions struct {
+	ManifestDir string `short:"D" long:"manifest-dir" description:"Output directory to exact manifests" required:"true"`
 }
 
 func Run() int {
@@ -54,23 +56,23 @@ func Run() int {
 			name:  "images",
 			short: "List app image",
 			long: []string{
-				"This command can be used to obeseve app images referenced",
-				"in the given set of manifests, inspect metadata and digests",
+				"This command load manifests from the given dir and prints info about",
+				"all app images referenced in these manifests",
 			},
 			options: &TapeImagesCommand{
-				CommonOptions: CommonOptions{tape: tape},
+				tape:                    tape,
+				InputManifestDirOptions: InputManifestDirOptions{},
 			},
 		},
 		{
 			name:  "package",
-			short: "Create a package",
+			short: "Package an artefact",
 			long: []string{
-				"This command can be used to package app images and configuration",
-				"as a single self-contained artefact",
+				"This command process manifests from the given dir and packages them as an artefact",
 			},
 			options: &TapePackageCommand{
-				CommonOptions: CommonOptions{tape: tape},
-			},
+				tape:                    tape,
+				InputManifestDirOptions: InputManifestDirOptions{}},
 		},
 	}
 
