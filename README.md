@@ -129,14 +129,14 @@ INFO[0000] resolving related images
 INFO[0007] copying images
 INFO[0012] copied images: ttl.sh/docker-labs-brown-tape/podinfo:app.98767129386790b1a06737587330605eed510345e9b40824f8d48813513a086a@sha256:92d43edf253c30782a1a9ceb970a718e6cb0454cff32a473e4f8a62dac355559, ttl.sh/docker-labs-brown-tape/podinfo:sha256-92d43edf253c30782a1a9ceb970a718e6cb0454cff32a473e4f8a62dac355559.sig@sha256:ed4e1649736c14982b5fe8a25c31a644ee99b7cec232d987c78fe1ab77000dce
 INFO[0012] updating manifest files
-INFO[0019] created package "ttl.sh/docker-labs-brown-tape/podinfo:config.ea816abb3c83c66181ff027115a84d930ec055ade76e3b7a861046df000bf75c@sha256:b6c13902eb94f45abca6c1f915f803338a4bf3b4caf2f766b0e321cf68e0db54"
+INFO[0019] created package "ttl.sh/docker-labs-brown-tape/podinfo:config.ea816abb3c83c66181ff027115a84d930ec055ade76e3b7a861046df000bf75c@sha256:c4ef95c63f4572fbbdcc15270c2e2441b5aba753bc7d3a0cf8f7e3d8171b7c6d"
 $
 ```
 
 Store image name and config tag+digest as environment variables:
 ```console
 podinfo_image=ttl.sh/docker-labs-brown-tape/podinfo
-podinfo_config=${podinfo_image}:config.ea816abb3c83c66181ff027115a84d930ec055ade76e3b7a861046df000bf75c@sha256:b6c13902eb94f45abca6c1f915f803338a4bf3b4caf2f766b0e321cf68e0db54
+podinfo_config=${podinfo_image}:config.ea816abb3c83c66181ff027115a84d930ec055ade76e3b7a861046df000bf75c@sha256:c4ef95c63f4572fbbdcc15270c2e2441b5aba753bc7d3a0cf8f7e3d8171b7c6d
 ```
 
 Examine the OCI index of the config image that's been created:
@@ -148,15 +148,23 @@ $ crane manifest "${podinfo_config}" | jq .
   "manifests": [
     {
       "mediaType": "application/vnd.oci.image.manifest.v1+json",
-      "size": 620,
-      "digest": "sha256:75d744c13aff7d004bc46d8b5f70888e8811c2513aff1ca75a8b7f4386b6adda",
-      "artifactType": "application/vnd.docker.tape.config.v1alpha1+json"
+      "size": 625,
+      "digest": "sha256:1f8b36b04801367cf9302ebadb7ff8a55d4a6b388007ccdc1b423657486952e2",
+      "platform": {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      "artifactType": "application/vnd.docker.tape.content.v1alpha1.tar+gzip"
     },
     {
       "mediaType": "application/vnd.oci.image.manifest.v1+json",
-      "size": 1434,
-      "digest": "sha256:841073130e32d2986b024fd53d8e5bcea0f87798d648eddfaef82eda1223262e",
-      "artifactType": "application/vnd.docker.tape.config.v1alpha1+json"
+      "size": 1440,
+      "digest": "sha256:6b8bd7bdb30a489db183930676c48f191b52f94be23c05ce035f8a3a8d330a53",
+      "platform": {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      "artifactType": "application/vnd.docker.tape.attest.v1alpha1.jsonl+gzip"
     }
   ],
   "annotations": {
@@ -172,7 +180,7 @@ $ crane manifest "${podinfo_image}@$(crane manifest "${podinfo_config}" | jq -r 
   "schemaVersion": 2,
   "mediaType": "application/vnd.oci.image.manifest.v1+json",
   "config": {
-    "mediaType": "application/vnd.docker.tape.config.v1alpha1+json",
+    "mediaType": "application/vnd.docker.tape.content.v1alpha1.tar+gzip",
     "size": 233,
     "digest": "sha256:3a5b16a8c592ad85f9b16563f47d03e5b66430e4db3f4260f18325e44e91942e"
   },
@@ -193,15 +201,15 @@ $ crane manifest "${podinfo_image}@$(crane manifest "${podinfo_config}" | jq -r 
   "schemaVersion": 2,
   "mediaType": "application/vnd.oci.image.manifest.v1+json",
   "config": {
-    "mediaType": "application/vnd.docker.tape.config.v1alpha1+json",
+    "mediaType": "application/vnd.docker.tape.attest.v1alpha1.jsonl+gzip",
     "size": 233,
-    "digest": "sha256:15d0d04733bedccdc27a64b56f41721702d625118a5e44cb4154c615600f69a8"
+    "digest": "sha256:3c162e42a2bbd7ff794312811a1da7a2a39289d4f41c7ac0f63c487a0eb3ae1a"
   },
   "layers": [
     {
       "mediaType": "application/vnd.docker.tape.attest.v1alpha1.jsonl+gzip",
-      "size": 881,
-      "digest": "sha256:fd5b1aadf86a48e2f3ba8bde962efb13619c2053031bdad74dde6ea5cbb3442a"
+      "size": 892,
+      "digest": "sha256:9b4fdb608f604536f3740b4cdf9524f7d65ddd9e79c0d591383e2cc4970f4302"
     }
   ],
   "annotations": {
@@ -413,11 +421,11 @@ $ crane blob ${podinfo_image}@${tape_attest_digest} | gunzip | jq .
     "resolvedImageReference": {
       "reference": "ghcr.io/stefanprodan/podinfo:6.4.1@sha256:92d43edf253c30782a1a9ceb970a718e6cb0454cff32a473e4f8a62dac355559",
       "line": 26,
-      "column": 16
+      "column": 16,
+      "alias": "podinfo"
     }
   }
 }
-
 $
 ```
 
