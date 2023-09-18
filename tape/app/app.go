@@ -74,6 +74,14 @@ func Run() int {
 				tape:                    tape,
 				InputManifestDirOptions: InputManifestDirOptions{}},
 		},
+		{
+			name:  "pull",
+			short: "Pull an artefact",
+			options: &TapePullCommand{
+				tape:                     tape,
+				OutputManifestDirOptions: OutputManifestDirOptions{},
+			},
+		},
 	}
 
 	for _, c := range commands {

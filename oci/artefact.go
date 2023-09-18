@@ -147,9 +147,9 @@ func newArtifcatInfoFromLayerDescriptor(image v1.Image, layerDecriptor v1.Descri
 		return nil, fmt.Errorf("fetching artefact image failed: %w", err)
 	}
 
-	blob, err := layer.Uncompressed()
+	blob, err := layer.Compressed()
 	if err != nil {
-		return nil, fmt.Errorf("extracting uncompressed aretefact image failed: %w", err)
+		return nil, fmt.Errorf("extracting compressed aretefact image failed: %w", err)
 	}
 	info := &ArtefactInfo{
 		ReadCloser:  blob,

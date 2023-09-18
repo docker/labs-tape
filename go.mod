@@ -68,6 +68,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fluxcd/pkg/sourceignore v0.3.4 // indirect
 	github.com/fluxcd/pkg/tar v0.2.0 // indirect
+	github.com/fluxcd/pkg/untar v0.3.0 // indirect
 	github.com/fluxcd/pkg/version v0.2.2 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.5.0 // indirect
