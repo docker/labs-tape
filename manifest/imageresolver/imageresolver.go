@@ -10,11 +10,14 @@ import (
 	"github.com/docker/labs-brown-tape/oci"
 )
 
-type Resolver interface {
-	ResolveDigests(context.Context, *types.ImageList) error
-	FindRelatedTags(context.Context, *types.ImageList) (*types.ImageList, error)
-	FindRelatedFromIndecies(context.Context, *types.ImageList, func(*types.Image, oci.Descriptor) error) (*types.ImageList, *types.ImageList, error)
-}
+type (
+	InspectIndexManifest func(*types.Image, oci.ImageIndex, *oci.IndexManifest) error
+	Resolver             interface {
+		ResolveDigests(context.Context, *types.ImageList) error
+		FindRelatedTags(context.Context, *types.ImageList) (*types.ImageList, error)
+		FindRelatedFromIndecies(context.Context, *types.ImageList, InspectIndexManifest) (*types.ImageList, *types.ImageList, error)
+	}
+)
 
 // TODO: add known digests to RegistryResolver, so that user can specify digests of newly built images
 type RegistryResolver struct {
@@ -91,21 +94,24 @@ func (c *RegistryResolver) FindRelatedTags(ctx context.Context, images *types.Im
 	return result, nil
 }
 
-func (c *RegistryResolver) FindRelatedFromIndecies(ctx context.Context, images *types.ImageList, inspect func(*types.Image, oci.Descriptor) error) (*types.ImageList, *types.ImageList, error) {
+func (c *RegistryResolver) FindRelatedFromIndecies(ctx context.Context, images *types.ImageList, inspect InspectIndexManifest) (*types.ImageList, *types.ImageList, error) {
 	manifests := types.NewImageList(images.Dir())
 	for i := range images.Items() {
 		image := images.Items()[i]
-		index, err := c.Index(ctx, image.Ref(true))
+		imageIndex, indexManifest, _, err := c.IndexOrImage(ctx, image.Ref(true))
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get index for %s: %w", image.Ref(true), err)
+			return nil, nil, err
 		}
-		for i := range index.Manifests {
-			manifest := index.Manifests[i]
-			if inspect != nil {
-				if err := inspect(&image, manifest); err != nil {
-					return nil, nil, err
-				}
+		if inspect != nil {
+			if err := inspect(&image, imageIndex, indexManifest); err != nil {
+				return nil, nil, err
 			}
+		}
+		if indexManifest == nil {
+			return nil, nil, fmt.Errorf("unexpected: FindRelatedFromIndecies is called on image %q which doesn't have index manifest", image.Ref(true))
+		}
+		for i := range indexManifest.Manifests {
+			manifest := indexManifest.Manifests[i]
 			err := manifests.AppendWithRelationTo(image, types.Image{
 				Sources: []types.Source{{
 					OriginalRef: image.OriginalName,

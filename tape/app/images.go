@@ -23,7 +23,8 @@ import (
 )
 
 type TapeImagesCommand struct {
-	CommonOptions
+	tape *TapeCommand
+	InputManifestDirOptions
 }
 
 type imageManifest struct {
@@ -81,7 +82,7 @@ func (c *TapeImagesCommand) Execute(args []string) error {
 	images := scanner.GetImages()
 	c.tape.log.Debugf("found images: %#v", images.Items())
 
-	client := oci.NewClient(nil)
+	client := oci.NewClient(nil) // oci.NewDebugClient(os.Stdout, nil)
 	// TODO: use client.LoginWithCredentials() and/or other options
 	// TODO: integrate with docker-credential-helpers
 
@@ -150,49 +151,67 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 
 	c.tape.log.Debugf("related images: %#v", related.Items())
 
-	inspectManifest := func(image *types.Image, manifest oci.Descriptor) error {
+	inspectManifest := func(image *types.Image, imageIndex oci.ImageIndex, indexManifest *oci.IndexManifest) error {
 		info := outputInfo[image.Ref(true)]
 
-		info.Manifests = append(info.Manifests, imageManifest{
-			Digest:      manifest.Digest,
-			MediaType:   manifest.MediaType,
-			Platform:    manifest.Platform,
-			Size:        manifest.Size,
-			Annotations: manifest.Annotations,
-		})
-		digest := manifest.Digest.String()
-		if v, ok := manifest.Annotations["vnd.docker.reference.type"]; ok && v == "attestation-manifest" {
-			subject, ok := manifest.Annotations["vnd.docker.reference.digest"]
-			if !ok {
-				return fmt.Errorf("attestation manifest %s does not have 'vnd.docker.reference.digest' annotation", digest)
+		for _, manifest := range indexManifest.Manifests {
+			info.Manifests = append(info.Manifests, imageManifest{
+				Digest:      manifest.Digest,
+				MediaType:   manifest.MediaType,
+				Platform:    manifest.Platform,
+				Size:        manifest.Size,
+				Annotations: manifest.Annotations,
+			})
+		}
+
+		artefacts, err := client.SelectArtefactsFromIndexOrImage(ctx, imageIndex, indexManifest, nil, "application/vnd.in-toto+json")
+		if err != nil {
+			return fmt.Errorf("failed to fetch inline attestation: %w", err)
+		}
+
+		for _, artefact := range artefacts {
+
+			doc := document{
+				MediaType: string(artefact.MediaType),
+				Object:    &in_toto.Statement{},
 			}
 
-			ref := image.OriginalName + "@" + digest
-			artefacts, err := client.GetArtefacts(ctx, ref)
-			if err != nil {
-				return fmt.Errorf("failed to fetch inline attestation: %w", err)
+			if err := json.NewDecoder(artefact).Decode(doc.Object); err != nil {
+				return fmt.Errorf("failed to unmarshal attestation: %w", err)
 			}
 
-			for _, artefact := range artefacts {
-				if artefact.MediaType != "application/vnd.in-toto+json" {
-					return fmt.Errorf("unexpected media type of attestation in %q: %s", ref, artefact.MediaType)
+			var subject string
+			if v, ok := artefact.Annotations["vnd.docker.reference.type"]; ok && v == "attestation-manifest" {
+				subject, ok = artefact.Annotations["vnd.docker.reference.digest"]
+				if !ok {
+					return fmt.Errorf("attestation manifest %q does not have 'vnd.docker.reference.digest' annotation", artefact.Digest)
 				}
+			} else {
+				statementSubject := doc.Object.(*in_toto.Statement).Subject
+				if len(statementSubject) < 0 {
+					return fmt.Errorf("statement in %q does not have a subject", artefact.Digest)
+				}
+				subject, ok = statementSubject[0].Digest["sha256"]
+				if !ok {
+					return fmt.Errorf("first subject in %q does not have a sha256 digest", artefact.Digest)
+				}
+			}
+			if subject == "" {
+				return fmt.Errorf("invalid inline attestation in %q: unable to determine subject", artefact.Digest)
+			}
 
-				doc := document{
-					MediaType: string(artefact.MediaType),
-					Object:    &in_toto.Statement{},
-				}
-
-				if err := json.NewDecoder(artefact).Decode(doc.Object); err != nil {
-					return fmt.Errorf("failed to unmarshal attestation: %w", err)
-				}
-				if predicateType, ok := artefact.Annotations["in-toto.io/predicate-type"]; ok {
-					switch predicateType {
-					case "https://spdx.dev/Document":
-						info.InlineSBOMs[subject] = doc
-					default:
-						info.InlineAttestations[subject] = doc
+			if predicateType, ok := artefact.Annotations["in-toto.io/predicate-type"]; ok {
+				switch predicateType {
+				case "https://spdx.dev/Document":
+					if _, ok := info.InlineSBOMs[subject]; ok {
+						return fmt.Errorf("duplicate SBOM for %s", subject)
 					}
+					info.InlineSBOMs[subject] = doc
+				default:
+					if _, ok := info.InlineAttestations[subject]; ok {
+						return fmt.Errorf("duplicate inline attestation for %s", subject)
+					}
+					info.InlineAttestations[subject] = doc
 				}
 			}
 		}
@@ -225,7 +244,7 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 				ref := relatedImage.Ref(true)
 				switch {
 				case strings.HasSuffix(relatedImage.OriginalTag, ".att"):
-					artefact, err := client.GetArtefact(ctx, ref)
+					artefact, err := client.GetSingleArtefact(ctx, ref)
 					if err != nil {
 						return nil, fmt.Errorf("failed to fetch external attestation: %w", err)
 					}
@@ -245,7 +264,7 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 
 					info.ExternalAttestations[ref] = doc
 				case strings.HasSuffix(relatedImage.OriginalTag, ".sbom"):
-					artefact, err := client.GetArtefact(ctx, ref)
+					artefact, err := client.GetSingleArtefact(ctx, ref)
 					if err != nil {
 						return nil, fmt.Errorf("failed to fetch external attestation: %w", err)
 					}
@@ -272,7 +291,7 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 
 					info.ExternalSBOMs[ref] = doc
 				case strings.HasSuffix(relatedImage.OriginalTag, ".sig"):
-					artefact, err := client.GetArtefact(ctx, ref)
+					artefact, err := client.GetSingleArtefact(ctx, ref)
 					if err != nil {
 						return nil, fmt.Errorf("failed to fetch external signature: %w", err)
 					}
