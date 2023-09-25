@@ -232,8 +232,9 @@ func (s Subjects) Export() []toto.Subject {
 	return subjects
 }
 
-func (s Subjects) MarshalJSON() ([]byte, error)     { return json.Marshal(s.Export()) }
-func (s *Subjects) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, s) }
+func (s Subjects) MarshalJSON() ([]byte, error) { return json.Marshal(s.Export()) }
+
+//func (s *Subjects) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, s) }
 
 func MakePathCheckSummaryCollection(entries ...PathChecker) (*PathCheckSummaryCollection, error) {
 	numEntries := len(entries)

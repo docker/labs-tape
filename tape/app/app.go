@@ -85,6 +85,13 @@ func Run() int {
 				OutputManifestDirOptions: OutputManifestDirOptions{},
 			},
 		},
+		{
+			name:  "view",
+			short: "View an artefact",
+			options: &TapeViewCommand{
+				tape: tape,
+			},
+		},
 	}
 
 	for _, c := range commands {
