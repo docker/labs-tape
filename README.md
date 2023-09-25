@@ -77,9 +77,9 @@ checksums. It stores the attestations using in-toto format in an OCI artifact.
 
 Tape has the following commands:
 
-- `tape images` - examine a given set of manifests before packaging them
-- `tape package`- package the application and push the resulting self-contained image to a registry
-
+- `tape images` - examine images referenced by a given set of manifests before packaging them
+- `tape package` - package an artifcat and push it to a registry
+- `tape pull` – downlowad and extract contents and attestations from an existing artifact
 
 ### Example
 
