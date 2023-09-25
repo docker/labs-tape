@@ -188,7 +188,7 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 				}
 			} else {
 				statementSubject := doc.Object.(*in_toto.Statement).Subject
-				if len(statementSubject) < 0 {
+				if len(statementSubject) == 0 {
 					return fmt.Errorf("statement in %q does not have a subject", artefact.Digest)
 				}
 				subject, ok = statementSubject[0].Digest["sha256"]
