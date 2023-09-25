@@ -24,6 +24,8 @@ import (
 
 type TapeImagesCommand struct {
 	tape *TapeCommand
+
+	OutputFormatOptions
 	InputManifestDirOptions
 }
 
@@ -390,7 +392,7 @@ func (c *TapeImagesCommand) PrintInfo(ctx context.Context, outputInfo map[string
 	stdj := json.NewEncoder(os.Stdout)
 
 	for _, info := range outputInfo {
-		switch c.tape.OutputFormat {
+		switch c.OutputFormat {
 		case OutputFormatDirectJSON:
 			stdj.SetIndent("", "  ")
 			if err := stdj.Encode(info); err != nil {
@@ -425,7 +427,7 @@ func (c *TapeImagesCommand) PrintInfo(ctx context.Context, outputInfo map[string
 				"External signatures":   info.ExternalSignatures,
 			}
 
-			if c.tape.OutputFormat == OutputFormatText {
+			if c.OutputFormat == OutputFormatText {
 				for desc, docset := range docsets {
 					fmt.Printf("  %s: %d\n", desc, len(docset))
 				}
@@ -469,7 +471,7 @@ func (c *TapeImagesCommand) PrintInfo(ctx context.Context, outputInfo map[string
 				}
 			}
 		default:
-			return fmt.Errorf("unsupported output format: %s", c.tape.OutputFormat)
+			return fmt.Errorf("unsupported output format: %s", c.OutputFormat)
 		}
 	}
 	return nil

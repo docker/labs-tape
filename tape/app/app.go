@@ -20,11 +20,14 @@ const (
 )
 
 type TapeCommand struct {
-	LogLevel     string       `short:"l" long:"log-level" description:"Log level" default:"info"`
-	OutputFormat OutputFormat `short:"o" long:"output-format" description:"Format of the output to use" default:"detailed-text"`
+	LogLevel string `short:"l" long:"log-level" description:"Log level" default:"info"`
 
 	log *logger.Logger
 	ctx context.Context
+}
+
+type OutputFormatOptions struct {
+	OutputFormat OutputFormat `short:"o" long:"output-format" description:"Format of the output to use" default:"detailed-text"`
 }
 
 type InputManifestDirOptions struct {
