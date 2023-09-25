@@ -34,7 +34,7 @@ func (c *TapePullCommand) Execute(args []string) error {
 
 	client := oci.NewClient(nil)
 
-	artefacts, err := client.SelectArtefacts(ctx, c.Image, oci.ContentMediaType, oci.AttestMediaType)
+	artefacts, err := client.Fetch(ctx, c.Image, oci.ContentMediaType, oci.AttestMediaType)
 	if err != nil {
 		return err
 	}

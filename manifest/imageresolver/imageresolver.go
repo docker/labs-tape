@@ -98,7 +98,7 @@ func (c *RegistryResolver) FindRelatedFromIndecies(ctx context.Context, images *
 	manifests := types.NewImageList(images.Dir())
 	for i := range images.Items() {
 		image := images.Items()[i]
-		imageIndex, indexManifest, _, err := c.IndexOrImage(ctx, image.Ref(true))
+		imageIndex, indexManifest, _, err := c.GetIndexOrImage(ctx, image.Ref(true))
 		if err != nil {
 			return nil, nil, err
 		}

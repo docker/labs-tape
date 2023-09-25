@@ -168,7 +168,7 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 			})
 		}
 
-		artefacts, err := client.SelectArtefactsFromIndexOrImage(ctx, imageIndex, indexManifest, nil, "application/vnd.in-toto+json")
+		artefacts, _, err := client.FetchFromIndexOrImage(ctx, imageIndex, indexManifest, nil, "application/vnd.in-toto+json")
 		if err != nil {
 			return fmt.Errorf("failed to fetch inline attestation: %w", err)
 		}
