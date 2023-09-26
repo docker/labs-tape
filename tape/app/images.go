@@ -30,33 +30,35 @@ type TapeImagesCommand struct {
 }
 
 type imageManifest struct {
-	Digest      oci.Hash
-	MediaType   oci.MediaType
-	Platform    *oci.Platform
-	Annotations map[string]string
-	Size        int64
+	Digest      oci.Hash          `json:"digest"`
+	MediaType   oci.MediaType     `json:"mediaType"`
+	Platform    *oci.Platform     `json:"platform,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+	Size        int64             `json:"size"`
 }
 
 type document struct {
-	MediaType string
-	Data      []byte
-	Object    any
+	MediaType string `json:"mediaType"`
+	Data      []byte `json:"data,omitempty"`
+	Object    any    `json:"object,omitempty"`
 }
 
+type documents map[string]document
+
 type imageInfo struct {
-	Ref            string
-	Alias          *string
-	DigestProvided bool
-	Sources        []types.Source
-	InlineAttestations,
-	ExternalAttestations,
-	InlineSBOMs,
-	ExternalSBOMs,
-	InlineSignatures, // TODO: implement
-	ExternalSignatures map[string]document
-	Related             map[string]*types.ImageList
-	RelatedUnclassified []string
-	Manifests           []imageManifest
+	Ref                  string                      `json:"ref"`
+	Alias                *string                     `json:"alias,omitempty"`
+	DigestProvided       bool                        `json:"digestProvided"`
+	Sources              []types.Source              `json:"sources"`
+	InlineAttestations   documents                   `json:"inlineAttestations"`
+	ExternalAttestations documents                   `json:"externalAttestations"`
+	InlineSBOMs          documents                   `json:"inlineSBOMs,omitempty"`
+	ExternalSBOMs        documents                   `json:"externalSBOMs,omitempty"`
+	InlineSignatures     documents                   `json:"inlineSignatures,omitempty"` // TODO: implement
+	ExternalSignatures   documents                   `json:"externalSignatures,omitempty"`
+	Related              map[string]*types.ImageList `json:"related,omitempty"`
+	RelatedUnclassified  []string                    `json:"relatedUnclassified,omitempty"`
+	Manifests            []imageManifest             `json:"manifests,omitempty"`
 }
 
 func (c *TapeImagesCommand) Execute(args []string) error {

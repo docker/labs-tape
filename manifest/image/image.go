@@ -8,30 +8,33 @@ import (
 
 type (
 	Image struct {
-		Sources []Source
+		Sources []Source `json:"sources"`
 
-		OriginalName, OriginalTag string
+		OriginalName string `json:"originalName,omitempty"`
+		OriginalTag  string `json:"originalTag,omitempty"`
 
-		Digest string
+		Digest string `json:"digest,omitempty"`
 
-		NewTag, NewName string
+		NewName string `json:"newName,omitempty"`
+		NewTag  string `json:"newTag,omitempty"`
 
-		Alias *string
+		Alias *string `json:"alias,omitempty"`
 	}
 
 	// ImageSource contains fields that are collected from a manifest and will not mutate
 	Source struct {
-		ImageSourceLocation
-		OriginalRef string
+		ImageSourceLocation `json:",inline"`
+		OriginalRef         string `json:"originalRef"`
 	}
 	// ImageSourceLocation is a unique location identifier for an image
 	ImageSourceLocation struct {
-		Manifest       string
-		ManifestDigest digest.SHA256
+		Manifest       string        `json:"manifest"`
+		ManifestDigest digest.SHA256 `json:"manifestDigest"`
 
-		Line, Column int
+		Line   int `json:"line"`
+		Column int `json:"column"`
 
-		NodePath []string
+		NodePath []string `json:"nodePath"`
 	}
 )
 

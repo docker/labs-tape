@@ -2,6 +2,7 @@ package image
 
 import (
 	"cmp"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -185,4 +186,8 @@ func (l *ImageList) GroupByManifest() map[string]*ImageList {
 		}
 	}
 	return groups
+}
+
+func (l *ImageList) MarshalJSON() ([]byte, error) {
+	return json.Marshal(l.items)
 }
