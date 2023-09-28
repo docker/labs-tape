@@ -72,6 +72,9 @@ func (s *DefaultImageScanner) Scan(dir string, manifests []string) error {
 				return err
 			}
 		}
+		if err := manifest.Close(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
