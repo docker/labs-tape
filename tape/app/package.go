@@ -156,6 +156,17 @@ func (c *TapePackageCommand) Execute(args []string) error {
 		return fmt.Errorf("failed to update manifest files: %w", err)
 	}
 
+	scanner.Reset()
+	if err := scanner.Scan(loader.RelPaths()); err != nil {
+		return fmt.Errorf("failed to scan updated manifest files: %w", err)
+	}
+	replacedImages := scanner.GetImages()
+	replacedImages.Dedup()
+
+	if err := attreg.AssociateStatements(manifest.MakeReplacedImageRefStatements(replacedImages)...); err != nil {
+		return err
+	}
+
 	c.tape.log.DebugFn(func() []interface{} {
 		buf := bytes.NewBuffer(nil)
 		if err := attreg.EncodeAllAttestations(base64.NewEncoder(base64.StdEncoding, buf)); err != nil {

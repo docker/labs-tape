@@ -107,4 +107,5 @@ func (s *DefaultImageScanner) GetImages() *types.ImageList {
 
 func (s *DefaultImageScanner) Reset() {
 	s.trackers = []*Tracker{}
+	s.attestor = nil
 }
