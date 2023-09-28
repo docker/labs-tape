@@ -80,6 +80,7 @@ Tape has the following commands:
 - `tape images` - examine images referenced by a given set of manifests before packaging them
 - `tape package` - package an artifcat and push it to a registry
 - `tape pull` – downlowad and extract contents and attestations from an existing artifact
+- `tape view` – inspect an existing artifact
 
 ### Example
 

@@ -56,7 +56,10 @@ func (s *DefaultImageScanner) Scan(dir string, manifests []string) error {
 
 		pipeline := kio.Pipeline{
 			Inputs: []kio.Reader{
-				&kio.ByteReader{Reader: io.TeeReader(manifest, s.hash)},
+				&kio.ByteReader{
+					Reader:                io.TeeReader(manifest, s.hash),
+					OmitReaderAnnotations: true,
+				},
 			},
 			Filters: []kio.Filter{filter},
 		}
@@ -71,6 +74,9 @@ func (s *DefaultImageScanner) Scan(dir string, manifests []string) error {
 			if err := s.attestor.Register(tracker.Manifest, tracker.ManifestDigest); err != nil {
 				return err
 			}
+		}
+		if err := manifest.Close(); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -107,4 +113,5 @@ func (s *DefaultImageScanner) GetImages() *types.ImageList {
 
 func (s *DefaultImageScanner) Reset() {
 	s.trackers = []*Tracker{}
+	s.attestor = nil
 }

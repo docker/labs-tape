@@ -19,6 +19,7 @@ type (
 		Path   string
 		Digest digest.SHA256
 	}
+	Mutations = map[PathCheckerRegistryKey]digest.SHA256
 
 	PathChecker interface {
 		ProviderName() string
@@ -168,18 +169,21 @@ func (s Statements) MakeSummaryAnnotation() SummaryAnnotation {
 }
 
 func (s Statements) MarshalSummaryAnnotation() (string, error) {
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(base64.NewEncoder(base64.StdEncoding, buf)).
-		Encode(s.MakeSummaryAnnotation()); err != nil {
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	base64 := base64.NewEncoder(base64.StdEncoding, buf)
+	if err := json.NewEncoder(base64).Encode(s.MakeSummaryAnnotation()); err != nil {
 		return "", fmt.Errorf("encoding attestations summary failed: %w", err)
+	}
+	if err := base64.Close(); err != nil {
+		return "", fmt.Errorf("cannot close base64 encoder while encoding attestations summary: %w", err)
 	}
 	return buf.String(), nil
 }
 
 func UnmarshalSummaryAnnotation(s string) (*SummaryAnnotation, error) {
 	summary := &SummaryAnnotation{}
-	if err := json.NewDecoder(base64.NewDecoder(base64.StdEncoding, bytes.NewBufferString(s))).
-		Decode(summary); err != nil {
+	base64 := base64.NewDecoder(base64.StdEncoding, bytes.NewBufferString(s))
+	if err := json.NewDecoder(base64).Decode(summary); err != nil {
 		return nil, fmt.Errorf("decoding attestation summary failed: %w", err)
 	}
 	return summary, nil
@@ -232,8 +236,28 @@ func (s Subjects) Export() []toto.Subject {
 	return subjects
 }
 
-func (s Subjects) MarshalJSON() ([]byte, error)     { return json.Marshal(s.Export()) }
-func (s *Subjects) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, s) }
+func (s Subjects) MarshalJSON() ([]byte, error) { return json.Marshal(s.Export()) }
+
+func (s *Subjects) UnmarshalJSON(data []byte) error {
+	subjects := []toto.Subject{}
+	if err := json.Unmarshal(data, &subjects); err != nil {
+		return err
+	}
+	if len(subjects) == 0 {
+		return fmt.Errorf("invalid subject: zero entries")
+	}
+	for i := range subjects {
+		digestValue, ok := subjects[i].Digest["sha256"]
+		if !ok {
+			return fmt.Errorf("invalid subject: missing sha256 digest")
+		}
+		*s = append(*s, Subject{
+			Name:   subjects[i].Name,
+			Digest: digest.SHA256(digestValue),
+		})
+	}
+	return nil
+}
 
 func MakePathCheckSummaryCollection(entries ...PathChecker) (*PathCheckSummaryCollection, error) {
 	numEntries := len(entries)

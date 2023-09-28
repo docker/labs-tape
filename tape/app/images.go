@@ -24,37 +24,41 @@ import (
 
 type TapeImagesCommand struct {
 	tape *TapeCommand
+
+	OutputFormatOptions
 	InputManifestDirOptions
 }
 
 type imageManifest struct {
-	Digest      oci.Hash
-	MediaType   oci.MediaType
-	Platform    *oci.Platform
-	Annotations map[string]string
-	Size        int64
+	Digest      oci.Hash          `json:"digest"`
+	MediaType   oci.MediaType     `json:"mediaType"`
+	Platform    *oci.Platform     `json:"platform,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+	Size        int64             `json:"size"`
 }
 
 type document struct {
-	MediaType string
-	Data      []byte
-	Object    any
+	MediaType string `json:"mediaType"`
+	Data      []byte `json:"data,omitempty"`
+	Object    any    `json:"object,omitempty"`
 }
 
+type documents map[string]document
+
 type imageInfo struct {
-	Ref            string
-	Alias          *string
-	DigestProvided bool
-	Sources        []types.Source
-	InlineAttestations,
-	ExternalAttestations,
-	InlineSBOMs,
-	ExternalSBOMs,
-	InlineSignatures, // TODO: implement
-	ExternalSignatures map[string]document
-	Related             map[string]*types.ImageList
-	RelatedUnclassified []string
-	Manifests           []imageManifest
+	Ref                  string                      `json:"ref"`
+	Alias                *string                     `json:"alias,omitempty"`
+	DigestProvided       bool                        `json:"digestProvided"`
+	Sources              []types.Source              `json:"sources"`
+	InlineAttestations   documents                   `json:"inlineAttestations"`
+	ExternalAttestations documents                   `json:"externalAttestations"`
+	InlineSBOMs          documents                   `json:"inlineSBOMs,omitempty"`
+	ExternalSBOMs        documents                   `json:"externalSBOMs,omitempty"`
+	InlineSignatures     documents                   `json:"inlineSignatures,omitempty"` // TODO: implement
+	ExternalSignatures   documents                   `json:"externalSignatures,omitempty"`
+	Related              map[string]*types.ImageList `json:"related,omitempty"`
+	RelatedUnclassified  []string                    `json:"relatedUnclassified,omitempty"`
+	Manifests            []imageManifest             `json:"manifests,omitempty"`
 }
 
 func (c *TapeImagesCommand) Execute(args []string) error {
@@ -164,7 +168,7 @@ func (c *TapeImagesCommand) CollectInfo(ctx context.Context, images *types.Image
 			})
 		}
 
-		artefacts, err := client.SelectArtefactsFromIndexOrImage(ctx, imageIndex, indexManifest, nil, "application/vnd.in-toto+json")
+		artefacts, _, err := client.FetchFromIndexOrImage(ctx, imageIndex, indexManifest, nil, "application/vnd.in-toto+json")
 		if err != nil {
 			return fmt.Errorf("failed to fetch inline attestation: %w", err)
 		}
@@ -390,7 +394,7 @@ func (c *TapeImagesCommand) PrintInfo(ctx context.Context, outputInfo map[string
 	stdj := json.NewEncoder(os.Stdout)
 
 	for _, info := range outputInfo {
-		switch c.tape.OutputFormat {
+		switch c.OutputFormat {
 		case OutputFormatDirectJSON:
 			stdj.SetIndent("", "  ")
 			if err := stdj.Encode(info); err != nil {
@@ -425,7 +429,7 @@ func (c *TapeImagesCommand) PrintInfo(ctx context.Context, outputInfo map[string
 				"External signatures":   info.ExternalSignatures,
 			}
 
-			if c.tape.OutputFormat == OutputFormatText {
+			if c.OutputFormat == OutputFormatText {
 				for desc, docset := range docsets {
 					fmt.Printf("  %s: %d\n", desc, len(docset))
 				}
@@ -469,7 +473,7 @@ func (c *TapeImagesCommand) PrintInfo(ctx context.Context, outputInfo map[string
 				}
 			}
 		default:
-			return fmt.Errorf("unsupported output format: %s", c.tape.OutputFormat)
+			return fmt.Errorf("unsupported output format: %s", c.OutputFormat)
 		}
 	}
 	return nil

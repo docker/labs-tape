@@ -26,6 +26,10 @@ type ResolvedImageRef struct {
 	attestTypes.GenericStatement[ImageRefenceWithLocation]
 }
 
+type ReplacedImageRef struct {
+	attestTypes.GenericStatement[ImageRefenceWithLocation]
+}
+
 type ImageRefenceWithLocation struct {
 	Reference string  `json:"reference"`
 	Line      int     `json:"line"`
@@ -34,7 +38,6 @@ type ImageRefenceWithLocation struct {
 }
 
 // TODO:
-// - replaced
 // - related tags (just the tags)
 // - copy inline atteststations, and reference them
 // - copy sigstore attestations, and reference them
@@ -52,6 +55,22 @@ func MakeOriginalImageRefStatements(images *manifestTypes.ImageList) attestTypes
 			),
 		}
 		statements = append(statements, s)
+	})
+	return statements
+}
+
+func MakeReplacedImageRefStatements(images *manifestTypes.ImageList) attestTypes.Statements {
+	statements := attestTypes.Statements{}
+	forEachImage(images, func(subject attestTypes.Subject, ref ImageRefenceWithLocation) {
+		statements = append(statements, &ReplacedImageRef{
+			attestTypes.MakeStatement(
+				ReplacedImageRefPredicateType,
+				struct {
+					ImageRefenceWithLocation `json:"replacedImageReference"`
+				}{ref},
+				subject,
+			),
+		})
 	})
 	return statements
 }

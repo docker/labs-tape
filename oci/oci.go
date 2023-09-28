@@ -27,13 +27,16 @@ const (
 )
 
 type (
-	Metadata      = ociclient.Metadata
-	MediaType     = typesv1.MediaType
-	Platform      = v1.Platform
-	Hash          = v1.Hash
 	Descriptor    = v1.Descriptor
+	Hash          = v1.Hash
+	Image         = v1.Image
 	ImageIndex    = v1.ImageIndex
 	IndexManifest = v1.IndexManifest
+	Layer         = v1.Layer
+	Manifest      = v1.Manifest
+	MediaType     = typesv1.MediaType
+	Metadata      = ociclient.Metadata
+	Platform      = v1.Platform
 	Client        struct {
 		*ociclient.Client
 		hash hash.Hash
@@ -90,7 +93,7 @@ func (c *Client) Copy(ctx context.Context, srcRef, dstRef, digest string) error 
 	return nil
 }
 
-func (c *Client) IndexOrImage(ctx context.Context, ref string) (v1.ImageIndex, *v1.IndexManifest, v1.Image, error) {
+func (c *Client) GetIndexOrImage(ctx context.Context, ref string) (v1.ImageIndex, *v1.IndexManifest, v1.Image, error) {
 	parsedRef, err := name.ParseReference(ref)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("invalid URL %q: %w", ref, err)

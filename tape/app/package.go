@@ -155,11 +155,26 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	if err := updater.Update(images); err != nil {
 		return fmt.Errorf("failed to update manifest files: %w", err)
 	}
+	attreg.RegisterMutated(updater.Mutations())
+	scanner.Reset()
+	if err := scanner.Scan(loader.RelPaths()); err != nil {
+		return fmt.Errorf("failed to scan updated manifest files: %w", err)
+	}
+	replacedImages := scanner.GetImages()
+	replacedImages.Dedup()
+
+	if err := attreg.AssociateStatements(manifest.MakeReplacedImageRefStatements(replacedImages)...); err != nil {
+		return err
+	}
 
 	c.tape.log.DebugFn(func() []interface{} {
-		buf := bytes.NewBuffer(nil)
-		if err := attreg.EncodeAllAttestations(base64.NewEncoder(base64.StdEncoding, buf)); err != nil {
+		buf := bytes.NewBuffer(make([]byte, 0, 1024))
+		base64 := base64.NewEncoder(base64.StdEncoding, buf)
+		if err := attreg.EncodeAllAttestations(base64); err != nil {
 			return []interface{}{"failed to encode attestations", err}
+		}
+		if err := base64.Close(); err != nil {
+			return []interface{}{"failed to close base64 encoder while encoding attestations", err}
 		}
 		return []interface{}{"attestations: ", buf.String()}
 	})

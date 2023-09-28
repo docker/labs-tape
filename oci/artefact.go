@@ -17,7 +17,6 @@ import (
 	"github.com/go-git/go-git/v5/utils/ioutil"
 	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -29,19 +28,21 @@ import (
 )
 
 const (
-	mediaTypePrefix                    = "application/vnd.docker.tape"
-	ConfigMediaType  typesv1.MediaType = mediaTypePrefix + ".config.v1alpha1+json"
-	ContentMediaType typesv1.MediaType = mediaTypePrefix + ".content.v1alpha1.tar+gzip"
-	AttestMediaType  typesv1.MediaType = mediaTypePrefix + ".attest.v1alpha1.jsonl+gzip"
+	mediaTypePrefix            = "application/vnd.docker.tape"
+	ConfigMediaType  MediaType = mediaTypePrefix + ".config.v1alpha1+json"
+	ContentMediaType MediaType = mediaTypePrefix + ".content.v1alpha1.tar+gzip"
+	AttestMediaType  MediaType = mediaTypePrefix + ".attest.v1alpha1.jsonl+gzip"
 
 	ContentInterpreterAnnotation   = mediaTypePrefix + ".content-interpreter.v1alpha1"
 	ContentInterpreterKubectlApply = mediaTypePrefix + ".kubectl-apply.v1alpha1.tar+gzip"
 
-	AttestationsSummaryAnnotations = mediaTypePrefix + ".attestations-summary.v1alpha1"
+	AttestationsSummaryAnnotation = mediaTypePrefix + ".attestations-summary.v1alpha1"
 
 	// TODO: content interpreter invocation with an image
 
 	regularFileMode = 0o640
+
+	OCIManifestSchema1 = typesv1.OCIManifestSchema1
 )
 
 type ArtefactInfo struct {
@@ -52,15 +53,16 @@ type ArtefactInfo struct {
 	Digest      string
 }
 
-func (c *Client) SelectArtefacts(ctx context.Context, ref string, mediaTypes ...MediaType) ([]*ArtefactInfo, error) {
-	imageIndex, indexManifest, image, err := c.IndexOrImage(ctx, ref)
+func (c *Client) Fetch(ctx context.Context, ref string, mediaTypes ...MediaType) ([]*ArtefactInfo, error) {
+	imageIndex, indexManifest, image, err := c.GetIndexOrImage(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
-	return c.SelectArtefactsFromIndexOrImage(ctx, imageIndex, indexManifest, image, mediaTypes...)
+	artefactInfo, _, err := c.FetchFromIndexOrImage(ctx, imageIndex, indexManifest, image, mediaTypes...)
+	return artefactInfo, err
 }
 
-func (c *Client) SelectArtefactsFromIndexOrImage(ctx context.Context, imageIndex v1.ImageIndex, indexManifest *v1.IndexManifest, image v1.Image, mediaTypes ...MediaType) ([]*ArtefactInfo, error) {
+func (c *Client) FetchFromIndexOrImage(ctx context.Context, imageIndex ImageIndex, indexManifest *IndexManifest, image Image, mediaTypes ...MediaType) ([]*ArtefactInfo, map[Hash]*Manifest, error) {
 	numMediaTypes := len(mediaTypes)
 
 	selector := make(map[MediaType]struct{}, numMediaTypes)
@@ -78,12 +80,20 @@ func (c *Client) SelectArtefactsFromIndexOrImage(ctx context.Context, imageIndex
 	}
 
 	artefacts := []*ArtefactInfo{}
+	manifests := map[Hash]*Manifest{}
 
 	if indexManifest == nil {
 		manifest, err := image.Manifest()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get manifest: %w", err)
+			return nil, nil, fmt.Errorf("failed to get manifest: %w", err)
 		}
+
+		imageDigest, err := image.Digest()
+		if err != nil {
+			return nil, nil, err
+		}
+		manifests[imageDigest] = manifest
+
 		for j := range manifest.Layers {
 			layerDescriptor := manifest.Layers[j]
 
@@ -91,13 +101,13 @@ func (c *Client) SelectArtefactsFromIndexOrImage(ctx context.Context, imageIndex
 				continue
 			}
 
-			info, err := newArtifcatInfoFromLayerDescriptor(image, layerDescriptor)
+			info, err := newArtifcatInfoFromLayerDescriptor(image, layerDescriptor, manifest.Annotations)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			artefacts = append(artefacts, info)
 		}
-		return artefacts, nil
+		return artefacts, manifests, nil
 	}
 
 	for i := range indexManifest.Manifests {
@@ -109,39 +119,41 @@ func (c *Client) SelectArtefactsFromIndexOrImage(ctx context.Context, imageIndex
 
 		image, manifest, err := c.getImage(ctx, imageIndex, manifestDescriptor.Digest)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+
+		manifests[manifestDescriptor.Digest] = manifest
 
 		for j := range manifest.Layers {
 			layerDescriptor := manifest.Layers[j]
 
 			if layerDescriptor.MediaType != MediaType(manifestDescriptor.ArtifactType) {
-				return nil, fmt.Errorf("media type mismatch between manifest and layer: %s != %s", manifestDescriptor.MediaType, layerDescriptor.MediaType)
+				return nil, nil, fmt.Errorf("media type mismatch between manifest and layer: %s != %s", manifestDescriptor.MediaType, layerDescriptor.MediaType)
 			}
 
-			info, err := newArtifcatInfoFromLayerDescriptor(image, layerDescriptor)
+			info, err := newArtifcatInfoFromLayerDescriptor(image, layerDescriptor, manifest.Annotations)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			artefacts = append(artefacts, info)
 		}
 	}
 
-	return artefacts, nil
+	return artefacts, manifests, nil
 }
 
 func (c *Client) GetSingleArtefact(ctx context.Context, ref string) (*ArtefactInfo, error) {
-	image, layers, err := c.getFlatArtefactLayers(ctx, ref)
+	image, layers, annotations, err := c.getFlatArtefactLayers(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
 	if len(layers) != 1 {
 		return nil, fmt.Errorf("multiple layers found in image %q", ref)
 	}
-	return newArtifcatInfoFromLayerDescriptor(image, layers[0])
+	return newArtifcatInfoFromLayerDescriptor(image, layers[0], annotations)
 }
 
-func newArtifcatInfoFromLayerDescriptor(image v1.Image, layerDecriptor v1.Descriptor) (*ArtefactInfo, error) {
+func newArtifcatInfoFromLayerDescriptor(image Image, layerDecriptor Descriptor, annotations map[string]string) (*ArtefactInfo, error) {
 	layer, err := image.LayerByDigest(layerDecriptor.Digest)
 	if err != nil {
 		return nil, fmt.Errorf("fetching artefact image failed: %w", err)
@@ -154,44 +166,44 @@ func newArtifcatInfoFromLayerDescriptor(image v1.Image, layerDecriptor v1.Descri
 	info := &ArtefactInfo{
 		ReadCloser:  blob,
 		MediaType:   layerDecriptor.MediaType,
-		Annotations: layerDecriptor.Annotations,
+		Annotations: annotations,
 		Digest:      layerDecriptor.Digest.String(),
 	}
 	return info, nil
 }
 
-func (c *Client) getFlatArtefactLayers(ctx context.Context, ref string) (v1.Image, []v1.Descriptor, error) {
-	imageIndex, indexManifest, image, err := c.IndexOrImage(ctx, ref)
+func (c *Client) getFlatArtefactLayers(ctx context.Context, ref string) (Image, []Descriptor, map[string]string, error) {
+	imageIndex, indexManifest, image, err := c.GetIndexOrImage(ctx, ref)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	var manifest *v1.Manifest
+	var manifest *Manifest
 
 	if indexManifest != nil {
 		if len(indexManifest.Manifests) != 1 {
-			return nil, nil, fmt.Errorf("multiple manifests found in image %q", ref)
+			return nil, nil, nil, fmt.Errorf("multiple manifests found in image %q", ref)
 		}
 
 		image, manifest, err = c.getImage(ctx, imageIndex, indexManifest.Manifests[0].Digest)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	} else {
 		manifest, err = image.Manifest()
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get manifest for %q: %w", ref, err)
+			return nil, nil, nil, fmt.Errorf("failed to get manifest for %q: %w", ref, err)
 		}
 	}
 
 	if len(manifest.Layers) < 1 {
-		return nil, nil, fmt.Errorf("no layers found in image %q", ref)
+		return nil, nil, nil, fmt.Errorf("no layers found in image %q", ref)
 	}
 
-	return image, manifest.Layers, nil
+	return image, manifest.Layers, manifest.Annotations, nil
 }
 
-func (c *Client) getImage(ctx context.Context, imageIndex v1.ImageIndex, digest v1.Hash) (v1.Image, *v1.Manifest, error) {
+func (c *Client) getImage(ctx context.Context, imageIndex ImageIndex, digest Hash) (Image, *Manifest, error) {
 	image, err := imageIndex.Image(digest)
 	if err != nil {
 		return nil, nil, err
@@ -250,7 +262,7 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	index := mutate.Annotations(
 		empty.Index,
 		indexAnnotations,
-	).(v1.ImageIndex)
+	).(ImageIndex)
 
 	configAnnotations := maps.Clone(indexAnnotations)
 
@@ -258,11 +270,11 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 
 	config := mutate.Annotations(
 		mutate.ConfigMediaType(
-			mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
+			mutate.MediaType(empty.Image, OCIManifestSchema1),
 			ContentMediaType,
 		),
 		configAnnotations,
-	).(v1.Image)
+	).(Image)
 
 	// There is an option to use LayerFromReader which will avoid writing any files to disk,
 	// albeit it might impact memory usage and there is no strict security requirement, and
@@ -295,15 +307,15 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		if err != nil {
 			return "", err
 		}
-		attestAnnotations[AttestationsSummaryAnnotations] = summary
+		attestAnnotations[AttestationsSummaryAnnotation] = summary
 
 		attest := mutate.Annotations(
 			mutate.ConfigMediaType(
-				mutate.MediaType(empty.Image, typesv1.OCIManifestSchema1),
+				mutate.MediaType(empty.Image, OCIManifestSchema1),
 				AttestMediaType,
 			),
 			attestAnnotations,
-		).(v1.Image)
+		).(Image)
 
 		attest, err = mutate.Append(attest, mutate.Addendum{Layer: attestLayer})
 		if err != nil {
@@ -330,9 +342,9 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	return ref + "@" + digest.String(), err
 }
 
-func makeDescriptorWithPlatform() v1.Descriptor {
-	return v1.Descriptor{
-		Platform: &v1.Platform{
+func makeDescriptorWithPlatform() Descriptor {
+	return Descriptor{
+		Platform: &Platform{
 			Architecture: "unknown",
 			OS:           "unknown",
 		},
@@ -432,7 +444,7 @@ func (c *Client) BuildArtefact(artifactPath,
 	return nil
 }
 
-func (c *Client) BuildAttestations(statements []attestTypes.Statement) (v1.Layer, error) {
+func (c *Client) BuildAttestations(statements []attestTypes.Statement) (Layer, error) {
 	if len(statements) == 0 {
 		return nil, nil
 	}
