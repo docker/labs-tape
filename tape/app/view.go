@@ -161,8 +161,16 @@ func (c *TapeViewCommand) PrintInfo(ctx context.Context, outputInfo *artefactInf
 		if outputInfo.AttestationsSummary != nil {
 			fmt.Printf("  Attestations Summary:\n")
 			fmt.Printf("    Number of Statements: %v\n", outputInfo.AttestationsSummary.NumStamentes)
-			fmt.Printf("    Predicate Types: %v\n", outputInfo.AttestationsSummary.PredicateTypes)
-			fmt.Printf("    Subjects: %v\n", outputInfo.AttestationsSummary.Subjects)
+			if outputInfo.AttestationsSummary.NumStamentes > 0 {
+				fmt.Printf("      Predicate Types:\n")
+				for i := range outputInfo.AttestationsSummary.PredicateTypes {
+					fmt.Printf("        %s\n", outputInfo.AttestationsSummary.PredicateTypes[i])
+				}
+				fmt.Printf("      Subjects:\n")
+				for i := range outputInfo.AttestationsSummary.Subjects {
+					fmt.Printf("        %s@sha256:%s\n", outputInfo.AttestationsSummary.Subjects[i].Name, outputInfo.AttestationsSummary.Subjects[i].Digest.String())
+				}
+			}
 		}
 	}
 	return nil
