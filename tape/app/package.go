@@ -155,7 +155,7 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	if err := updater.Update(images); err != nil {
 		return fmt.Errorf("failed to update manifest files: %w", err)
 	}
-
+	attreg.RegisterMutated(updater.Mutations())
 	scanner.Reset()
 	if err := scanner.Scan(loader.RelPaths()); err != nil {
 		return fmt.Errorf("failed to scan updated manifest files: %w", err)

@@ -14,16 +14,12 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-type PathCheckerRegistryKey struct {
-	Path   string
-	Digest digest.SHA256
-}
-
 type PathCheckerRegistry struct {
 	newPathChecker func(string, digest.SHA256) types.PathChecker
 
-	registry   map[PathCheckerRegistryKey]types.PathChecker
-	statements types.Statements
+	registry     map[types.PathCheckerRegistryKey]types.PathChecker
+	mutatedPaths types.Mutations
+	statements   types.Statements
 
 	baseDir
 }
@@ -39,7 +35,7 @@ func NewPathCheckerRegistry(dir string, newPathChecker func(string, digest.SHA25
 	return &PathCheckerRegistry{
 		baseDir:        baseDir{fromWorkDir: dir},
 		newPathChecker: newPathChecker,
-		registry:       map[PathCheckerRegistryKey]types.PathChecker{},
+		registry:       map[types.PathCheckerRegistryKey]types.PathChecker{},
 		statements:     types.Statements{},
 	}
 }
@@ -71,13 +67,28 @@ func (r *PathCheckerRegistry) Register(path string, digest digest.SHA256) error 
 	return nil
 }
 
+func (r *PathCheckerRegistry) RegisterMutated(mutatedPaths types.Mutations) {
+	r.mutatedPaths = make(types.Mutations, len(mutatedPaths)) // avoid stale entries
+	for k := range mutatedPaths {
+		oldDigest := mutatedPaths[k]
+		k.Path = r.pathFromRepoRoot(k.Path)
+		r.mutatedPaths[k] = oldDigest
+	}
+}
+
 func (r *PathCheckerRegistry) AssociateStatements(statements ...types.Statement) error {
 	for i := range statements {
 		if err := statements[i].SetSubjects(func(subject *types.Subject) error {
 			path := r.pathFromRepoRoot(subject.Name)
 			key := r.makeKey(path, subject.Digest)
 			if _, ok := r.registry[key]; !ok {
-				return fmt.Errorf("statement with subject %#v is not relevant (path resoved to %q)", subject, path)
+				err := fmt.Errorf("statement with subject %#v is not relevant (path resoved to %q)", subject, path)
+				if r.mutatedPaths == nil {
+					return err
+				}
+				if _, ok := r.mutatedPaths[key]; !ok {
+					return err
+				}
 			}
 			subject.Name = path
 			return nil
@@ -86,7 +97,6 @@ func (r *PathCheckerRegistry) AssociateStatements(statements ...types.Statement)
 		}
 	}
 	r.statements = append(r.statements, statements...)
-
 	return nil
 }
 
@@ -178,6 +188,6 @@ func (r *PathCheckerRegistry) pathFromWorkDir(path string) string {
 	return filepath.Join(r.fromWorkDir, path)
 }
 
-func (r *PathCheckerRegistry) makeKey(path string, digest digest.SHA256) PathCheckerRegistryKey {
-	return PathCheckerRegistryKey{Path: path, Digest: digest}
+func (r *PathCheckerRegistry) makeKey(path string, digest digest.SHA256) types.PathCheckerRegistryKey {
+	return types.PathCheckerRegistryKey{Path: path, Digest: digest}
 }

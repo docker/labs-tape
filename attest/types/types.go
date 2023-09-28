@@ -19,6 +19,7 @@ type (
 		Path   string
 		Digest digest.SHA256
 	}
+	Mutations = map[PathCheckerRegistryKey]digest.SHA256
 
 	PathChecker interface {
 		ProviderName() string

@@ -56,7 +56,10 @@ func (s *DefaultImageScanner) Scan(dir string, manifests []string) error {
 
 		pipeline := kio.Pipeline{
 			Inputs: []kio.Reader{
-				&kio.ByteReader{Reader: io.TeeReader(manifest, s.hash)},
+				&kio.ByteReader{
+					Reader:                io.TeeReader(manifest, s.hash),
+					OmitReaderAnnotations: true,
+				},
 			},
 			Filters: []kio.Filter{filter},
 		}
