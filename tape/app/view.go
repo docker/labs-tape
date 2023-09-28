@@ -11,7 +11,7 @@ import (
 
 	toto "github.com/in-toto/in-toto-golang/in_toto"
 
-	//attestTypes "github.com/docker/labs-brown-tape/attest/types"
+	attestTypes "github.com/docker/labs-brown-tape/attest/types"
 
 	"github.com/docker/labs-brown-tape/oci"
 )
@@ -29,7 +29,8 @@ type artefactInfo struct {
 		Content rawManifest[oci.Manifest]      `json:"content"`
 		Attest  rawManifest[oci.Manifest]      `json:"attest"`
 	} `json:"rawManifests"`
-	Attestations []toto.Statement `json:"attestations"`
+	Attestations        []toto.Statement               `json:"attestations"`
+	AttestationsSummary *attestTypes.SummaryAnnotation `json:"attestationsSummary,omitempty"`
 }
 
 type rawManifest[T oci.Manifest | oci.IndexManifest] struct {
@@ -96,6 +97,14 @@ func (c *TapeViewCommand) CollectInfo(ctx context.Context, client *oci.Client) (
 		switch info.MediaType {
 		case oci.ContentMediaType:
 		case oci.AttestMediaType:
+			if annotation, ok := info.Annotations[oci.AttestationsSummaryAnnotation]; ok {
+				summary, err := attestTypes.UnmarshalSummaryAnnotation(annotation)
+				if err != nil {
+					return nil, err
+				}
+				artefactInfo.AttestationsSummary = summary
+			}
+
 			gr, err := gzip.NewReader(info)
 			if err != nil {
 				return nil, err
@@ -149,6 +158,12 @@ func (c *TapeViewCommand) PrintInfo(ctx context.Context, outputInfo *artefactInf
 		fmt.Printf("    %s %s\n", outputInfo.RawManifests.Attest.Digest,
 			outputInfo.RawManifests.Attest.Manifest.Config.MediaType)
 
+		if outputInfo.AttestationsSummary != nil {
+			fmt.Printf("  Attestations Summary:\n")
+			fmt.Printf("    Number of Statements: %v\n", outputInfo.AttestationsSummary.NumStamentes)
+			fmt.Printf("    Predicate Types: %v\n", outputInfo.AttestationsSummary.PredicateTypes)
+			fmt.Printf("    Subjects: %v\n", outputInfo.AttestationsSummary.Subjects)
+		}
 	}
 	return nil
 }

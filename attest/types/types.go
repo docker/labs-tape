@@ -234,7 +234,26 @@ func (s Subjects) Export() []toto.Subject {
 
 func (s Subjects) MarshalJSON() ([]byte, error) { return json.Marshal(s.Export()) }
 
-//func (s *Subjects) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, s) }
+func (s *Subjects) UnmarshalJSON(data []byte) error {
+	subjects := []toto.Subject{}
+	if err := json.Unmarshal(data, &subjects); err != nil {
+		return err
+	}
+	if len(subjects) == 0 {
+		return fmt.Errorf("invalid subject: zero entries")
+	}
+	for i := range subjects {
+		digestValue, ok := subjects[i].Digest["sha256"]
+		if !ok {
+			return fmt.Errorf("invalid subject: missing sha256 digest")
+		}
+		*s = append(*s, Subject{
+			Name:   subjects[i].Name,
+			Digest: digest.SHA256(digestValue),
+		})
+	}
+	return nil
+}
 
 func MakePathCheckSummaryCollection(entries ...PathChecker) (*PathCheckSummaryCollection, error) {
 	numEntries := len(entries)

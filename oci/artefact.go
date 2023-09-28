@@ -36,7 +36,7 @@ const (
 	ContentInterpreterAnnotation   = mediaTypePrefix + ".content-interpreter.v1alpha1"
 	ContentInterpreterKubectlApply = mediaTypePrefix + ".kubectl-apply.v1alpha1.tar+gzip"
 
-	AttestationsSummaryAnnotations = mediaTypePrefix + ".attestations-summary.v1alpha1"
+	AttestationsSummaryAnnotation = mediaTypePrefix + ".attestations-summary.v1alpha1"
 
 	// TODO: content interpreter invocation with an image
 
@@ -101,7 +101,7 @@ func (c *Client) FetchFromIndexOrImage(ctx context.Context, imageIndex ImageInde
 				continue
 			}
 
-			info, err := newArtifcatInfoFromLayerDescriptor(image, layerDescriptor)
+			info, err := newArtifcatInfoFromLayerDescriptor(image, layerDescriptor, manifest.Annotations)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -131,7 +131,7 @@ func (c *Client) FetchFromIndexOrImage(ctx context.Context, imageIndex ImageInde
 				return nil, nil, fmt.Errorf("media type mismatch between manifest and layer: %s != %s", manifestDescriptor.MediaType, layerDescriptor.MediaType)
 			}
 
-			info, err := newArtifcatInfoFromLayerDescriptor(image, layerDescriptor)
+			info, err := newArtifcatInfoFromLayerDescriptor(image, layerDescriptor, manifest.Annotations)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -143,17 +143,17 @@ func (c *Client) FetchFromIndexOrImage(ctx context.Context, imageIndex ImageInde
 }
 
 func (c *Client) GetSingleArtefact(ctx context.Context, ref string) (*ArtefactInfo, error) {
-	image, layers, err := c.getFlatArtefactLayers(ctx, ref)
+	image, layers, annotations, err := c.getFlatArtefactLayers(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
 	if len(layers) != 1 {
 		return nil, fmt.Errorf("multiple layers found in image %q", ref)
 	}
-	return newArtifcatInfoFromLayerDescriptor(image, layers[0])
+	return newArtifcatInfoFromLayerDescriptor(image, layers[0], annotations)
 }
 
-func newArtifcatInfoFromLayerDescriptor(image Image, layerDecriptor Descriptor) (*ArtefactInfo, error) {
+func newArtifcatInfoFromLayerDescriptor(image Image, layerDecriptor Descriptor, annotations map[string]string) (*ArtefactInfo, error) {
 	layer, err := image.LayerByDigest(layerDecriptor.Digest)
 	if err != nil {
 		return nil, fmt.Errorf("fetching artefact image failed: %w", err)
@@ -166,41 +166,41 @@ func newArtifcatInfoFromLayerDescriptor(image Image, layerDecriptor Descriptor) 
 	info := &ArtefactInfo{
 		ReadCloser:  blob,
 		MediaType:   layerDecriptor.MediaType,
-		Annotations: layerDecriptor.Annotations,
+		Annotations: annotations,
 		Digest:      layerDecriptor.Digest.String(),
 	}
 	return info, nil
 }
 
-func (c *Client) getFlatArtefactLayers(ctx context.Context, ref string) (Image, []Descriptor, error) {
+func (c *Client) getFlatArtefactLayers(ctx context.Context, ref string) (Image, []Descriptor, map[string]string, error) {
 	imageIndex, indexManifest, image, err := c.GetIndexOrImage(ctx, ref)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	var manifest *Manifest
 
 	if indexManifest != nil {
 		if len(indexManifest.Manifests) != 1 {
-			return nil, nil, fmt.Errorf("multiple manifests found in image %q", ref)
+			return nil, nil, nil, fmt.Errorf("multiple manifests found in image %q", ref)
 		}
 
 		image, manifest, err = c.getImage(ctx, imageIndex, indexManifest.Manifests[0].Digest)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	} else {
 		manifest, err = image.Manifest()
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get manifest for %q: %w", ref, err)
+			return nil, nil, nil, fmt.Errorf("failed to get manifest for %q: %w", ref, err)
 		}
 	}
 
 	if len(manifest.Layers) < 1 {
-		return nil, nil, fmt.Errorf("no layers found in image %q", ref)
+		return nil, nil, nil, fmt.Errorf("no layers found in image %q", ref)
 	}
 
-	return image, manifest.Layers, nil
+	return image, manifest.Layers, manifest.Annotations, nil
 }
 
 func (c *Client) getImage(ctx context.Context, imageIndex ImageIndex, digest Hash) (Image, *Manifest, error) {
@@ -307,7 +307,7 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		if err != nil {
 			return "", err
 		}
-		attestAnnotations[AttestationsSummaryAnnotations] = summary
+		attestAnnotations[AttestationsSummaryAnnotation] = summary
 
 		attest := mutate.Annotations(
 			mutate.ConfigMediaType(
