@@ -169,18 +169,21 @@ func (s Statements) MakeSummaryAnnotation() SummaryAnnotation {
 }
 
 func (s Statements) MarshalSummaryAnnotation() (string, error) {
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(base64.NewEncoder(base64.StdEncoding, buf)).
-		Encode(s.MakeSummaryAnnotation()); err != nil {
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	base64 := base64.NewEncoder(base64.StdEncoding, buf)
+	if err := json.NewEncoder(base64).Encode(s.MakeSummaryAnnotation()); err != nil {
 		return "", fmt.Errorf("encoding attestations summary failed: %w", err)
+	}
+	if err := base64.Close(); err != nil {
+		return "", fmt.Errorf("cannot close base64 encoder while encoding attestations summary: %w", err)
 	}
 	return buf.String(), nil
 }
 
 func UnmarshalSummaryAnnotation(s string) (*SummaryAnnotation, error) {
 	summary := &SummaryAnnotation{}
-	if err := json.NewDecoder(base64.NewDecoder(base64.StdEncoding, bytes.NewBufferString(s))).
-		Decode(summary); err != nil {
+	base64 := base64.NewDecoder(base64.StdEncoding, bytes.NewBufferString(s))
+	if err := json.NewDecoder(base64).Decode(summary); err != nil {
 		return nil, fmt.Errorf("decoding attestation summary failed: %w", err)
 	}
 	return summary, nil

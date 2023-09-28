@@ -168,9 +168,13 @@ func (c *TapePackageCommand) Execute(args []string) error {
 	}
 
 	c.tape.log.DebugFn(func() []interface{} {
-		buf := bytes.NewBuffer(nil)
-		if err := attreg.EncodeAllAttestations(base64.NewEncoder(base64.StdEncoding, buf)); err != nil {
+		buf := bytes.NewBuffer(make([]byte, 0, 1024))
+		base64 := base64.NewEncoder(base64.StdEncoding, buf)
+		if err := attreg.EncodeAllAttestations(base64); err != nil {
 			return []interface{}{"failed to encode attestations", err}
+		}
+		if err := base64.Close(); err != nil {
+			return []interface{}{"failed to close base64 encoder while encoding attestations", err}
 		}
 		return []interface{}{"attestations: ", buf.String()}
 	})
