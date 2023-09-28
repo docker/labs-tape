@@ -11,6 +11,7 @@ import (
 
 	toto "github.com/in-toto/in-toto-golang/in_toto"
 
+	"github.com/docker/labs-brown-tape/attest/manifest"
 	attestTypes "github.com/docker/labs-brown-tape/attest/types"
 
 	"github.com/docker/labs-brown-tape/oci"
@@ -24,6 +25,7 @@ type TapeViewCommand struct {
 }
 
 type artefactInfo struct {
+	AppImages    []string `json:"appImages"`
 	RawManifests struct {
 		Index   rawManifest[oci.IndexManifest] `json:"index"`
 		Content rawManifest[oci.Manifest]      `json:"content"`
@@ -126,6 +128,23 @@ func (c *TapeViewCommand) CollectInfo(ctx context.Context, client *oci.Client) (
 		}
 	}
 
+	for _, statement := range artefactInfo.Attestations {
+		if statement.PredicateType == manifest.ReplacedImageRefPredicateType {
+			buf := bytes.NewBuffer(nil)
+			if err := json.NewEncoder(buf).Encode(statement.Predicate); err != nil {
+				return nil, err
+			}
+			predicate := &struct {
+				manifest.ImageRefenceWithLocation `json:"replacedImageReference"`
+			}{}
+			if err := json.NewDecoder(buf).Decode(predicate); err != nil {
+				return nil, err
+			}
+
+			artefactInfo.AppImages = append(artefactInfo.AppImages, predicate.Reference)
+		}
+	}
+
 	for digest := range manifests {
 		m := rawManifest[oci.Manifest]{
 			Digest:   digest.String(),
@@ -157,7 +176,12 @@ func (c *TapeViewCommand) PrintInfo(ctx context.Context, outputInfo *artefactInf
 			outputInfo.RawManifests.Content.Manifest.Config.MediaType)
 		fmt.Printf("    %s %s\n", outputInfo.RawManifests.Attest.Digest,
 			outputInfo.RawManifests.Attest.Manifest.Config.MediaType)
-
+		if len(outputInfo.AppImages) > 0 {
+			fmt.Printf("  App Images:\n")
+			for i := range outputInfo.AppImages {
+				fmt.Printf("    %s\n", outputInfo.AppImages[i])
+			}
+		}
 		if outputInfo.AttestationsSummary != nil {
 			fmt.Printf("  Attestations Summary:\n")
 			fmt.Printf("    Number of Statements: %v\n", outputInfo.AttestationsSummary.NumStamentes)
