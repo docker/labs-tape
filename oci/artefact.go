@@ -244,11 +244,13 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		return "", fmt.Errorf("failed to serialise attestations: %w", err)
 	}
 
-	ref := destinationRef + ":" + manifestTypes.ConfigImageTagPrefix + hex.EncodeToString(c.hash.Sum(nil))
-	tag, err := name.ParseReference(ref)
+	repo, err := name.NewRepository(destinationRef)
 	if err != nil {
 		return "", fmt.Errorf("invalid URL: %w", err)
 	}
+	hash := hex.EncodeToString(c.hash.Sum(nil))
+	tag := repo.Tag(manifestTypes.ConfigImageTagPrefix + hash)
+	tagAlias := tag.Context().Tag(manifestTypes.ConfigImageTagPrefix + hash[:7])
 
 	if timestamp == nil {
 		timestamp = new(time.Time)
@@ -339,7 +341,11 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		return "", fmt.Errorf("pushing index failed: %w", err)
 	}
 
-	return ref + "@" + digest.String(), err
+	if err := remote.Tag(tagAlias, index, c.remoteWithContext(ctx)...); err != nil {
+		return "", fmt.Errorf("adding alias tagging failed: %w", err)
+	}
+
+	return tagAlias.String() + "@" + digest.String(), err
 }
 
 func makeDescriptorWithPlatform() Descriptor {
