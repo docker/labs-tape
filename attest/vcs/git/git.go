@@ -23,9 +23,6 @@ const (
 	DefaultPrimaryRemoteName = "origin"
 )
 
-// TODO: need a way to detect multiple repos, for now PathChecker is only meant
-// to be used for the manifest dir iteself, and assume there is no nested repos
-
 func NewPathChecker(path string, digest digest.SHA256) types.PathChecker {
 	return &PathChecker{
 		path:   path,
