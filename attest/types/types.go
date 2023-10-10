@@ -119,6 +119,30 @@ func Export(s ExportableStatement) toto.Statement {
 	}
 }
 
+func FilterByPredicateType(t string, s Statements) Statements {
+	results := Statements{}
+	for i := range s {
+		if s[i].GetType() == t {
+			results = append(results, s[i])
+		}
+	}
+	return results
+}
+
+type StamentConverter[T any] struct {
+	Statement
+}
+
+func (s *GenericStatement[T]) ConvertFrom(statement Statement) error {
+	predicate, ok := s.GetPredicate().(ComparablePredicate[T])
+	if !ok {
+		return fmt.Errorf("cannot convert statement with predicte of type %T into %T", s.GetPredicate(), GenericStatement[T]{})
+	}
+
+	*s = MakeStatement[T](s.GetType(), predicate, s.GetSubject()...)
+	return nil
+}
+
 func (s Statements) Export() []toto.Statement {
 	statements := make([]toto.Statement, len(s))
 	for i := range s {

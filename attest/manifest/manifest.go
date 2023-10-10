@@ -42,6 +42,14 @@ func MakeDirContentsStatement(dir string, entries *types.PathCheckSummaryCollect
 	}
 }
 
+func MakeDirContentsStatementFrom(statement types.Statement) DirContents {
+	dirContents := DirContents{
+		GenericStatement: attestTypes.GenericStatement[SourceDirectory]{},
+	}
+	dirContents.ConvertFrom(statement)
+	return dirContents
+}
+
 func (a SourceDirectory) Compare(b SourceDirectory) types.Cmp {
 	if cmp := cmp.Compare(a.Path, b.Path); cmp != 0 {
 		return &cmp

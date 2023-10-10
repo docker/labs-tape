@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	typesv1 "github.com/google/go-containerregistry/pkg/v1/types"
 
+	"github.com/docker/labs-brown-tape/attest/manifest"
 	attestTypes "github.com/docker/labs-brown-tape/attest/types"
 	manifestTypes "github.com/docker/labs-brown-tape/manifest/types"
 )
@@ -223,6 +224,10 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	}
 	defer os.RemoveAll(tmpDir)
 
+	_, err = SemVerFromAttestations(ctx, sourceAttestations...)
+	if err != nil {
+		return "", err
+	}
 	tmpFile := filepath.Join(tmpDir, "artefact.tgz")
 
 	outputFile, err := os.OpenFile(tmpFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, regularFileMode)
@@ -346,6 +351,20 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	}
 
 	return tagAlias.String() + "@" + digest.String(), err
+}
+
+func SemVerFromAttestations(ctx context.Context, sourceAttestations ...attestTypes.Statement) (string, error) {
+	statements := attestTypes.FilterByPredicateType(manifest.ManifestDirPredicateType, sourceAttestations)
+	if len(statements) == 0 {
+		return "", fmt.Errorf("VCS provinance attestion (%q) not found", manifest.ManifestDirPredicateType)
+	}
+	if len(statements) > 1 {
+		return "", fmt.Errorf("too many attestations of type %q found, expected 1", manifest.ManifestDirPredicateType)
+	}
+
+	_ = manifest.MakeDirContentsStatementFrom(statements[0])
+
+	return "", nil
 }
 
 func makeDescriptorWithPlatform() Descriptor {
