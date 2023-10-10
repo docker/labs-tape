@@ -4,10 +4,11 @@ import (
 	"cmp"
 
 	"github.com/docker/labs-brown-tape/attest/types"
+	attestTypes "github.com/docker/labs-brown-tape/attest/types"
 )
 
 const (
-	ManifestDirPredicateType = "docker.com/tape/ManifestDir/v0.1"
+	ManifestDirPredicateType = "docker.com/tape/ManifestDir/v0.2"
 )
 
 var (

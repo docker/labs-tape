@@ -44,16 +44,35 @@ type (
 	}
 
 	GitSummary struct {
-		ObjectHash *string             `json:"objectHash,omitempty"`
-		Remotes    map[string][]string `json:"remotes,omitempty"`
-		Reference  GitReference        `json:"reference,omitempty"`
+		Object    GitObject           `json:"object,omitempty"`
+		Remotes   map[string][]string `json:"remotes,omitempty"`
+		Reference GitReference        `json:"reference,omitempty"`
+	}
+
+	GitObject struct {
+		TreeHash   string `json:"treeHash,omitempty"`
+		CommitHash string `json:"commitHash,omitempty"`
+	}
+
+	Signature struct {
+		PGP       []byte `json:"pgp"`
+		Validated bool   `json:"validated"`
+	}
+
+	GitTag struct {
+		Name      string     `json:"name"`
+		Hash      string     `json:"hash,omitempty"`
+		Target    string     `json:"target,omitempty"`
+		Signature *Signature `json:"signature,omitempty"`
 	}
 
 	GitReference struct {
-		Name   string `json:"name,omitempty"`
-		Hash   string `json:"hash,omitempty"`
-		Type   string `json:"type,omitempty"`
-		Target string `json:"target,omitempty"`
+		Name      string     `json:"name,omitempty"`
+		Hash      string     `json:"hash,omitempty"`
+		Type      string     `json:"type,omitempty"`
+		Target    string     `json:"target,omitempty"`
+		Tags      []GitTag   `json:"tags,omitempty"`
+		Signature *Signature `json:"signature,omitempty"`
 	}
 )
 
@@ -139,19 +158,101 @@ func (c *PathChecker) MakeSummary() (types.PathCheckSummary, error) {
 		Git: &git,
 	}
 
-	// TODO: determine position of local branch against remote
-	// TODO: introduce notion of primary remote branch to determine the possition of the working branch
-	// TODO: determine if a tag is used
-	// TODO: also check if local tag in sync wirth remote tag
-	// TODO: provide info on singed tags/commits
+	head, err := c.cache.repo.Head()
+	if err != nil {
+		return nil, err
+	}
 
+	ref := GitReference{
+		Name:   head.Name().String(),
+		Hash:   head.Hash().String(),
+		Type:   head.Type().String(),
+		Target: head.Target().String(),
+	}
+
+	obj := &GitObject{}
 	if summary.Unmodified {
-		git.ObjectHash = new(string)
-		*git.ObjectHash = c.cache.obj.ID().String()
+		obj.TreeHash = c.cache.obj.ID().String()
 	} else if c.IsBlob() {
 		// there is currently no easy way to obtain a hash for a subtree
-		git.ObjectHash = new(string)
-		*git.ObjectHash = c.cache.blobHash
+		obj.TreeHash = c.cache.blobHash
+	}
+
+	headCommit, err := c.cache.repo.CommitObject(head.Hash())
+	if err != nil {
+		return nil, err
+	}
+	if headCommit.PGPSignature != "" {
+		ref.Signature = &Signature{
+			PGP:       []byte(headCommit.PGPSignature),
+			Validated: false,
+		}
+	}
+
+	if summary.Unmodified {
+		commitIter := object.NewCommitPathIterFromIter(
+			func(path string) bool {
+				switch {
+				case c.IsTree():
+					return strings.HasPrefix(c.cache.repoPath, path)
+				case c.IsBlob():
+					return c.cache.repoPath == path
+				default:
+					return false
+				}
+			},
+			object.NewCommitIterCTime(headCommit, nil, nil),
+			true,
+		)
+		defer commitIter.Close()
+		// only need first commit, avoid looping over all commits with ForEach
+		commit, err := commitIter.Next()
+		if err == nil {
+			obj.CommitHash = commit.Hash.String()
+		} else if err != io.EOF {
+			return nil, err
+		}
+	}
+
+	tags, err := c.cache.repo.Tags()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tags.ForEach(func(t *plumbing.Reference) error {
+		target, err := c.cache.repo.ResolveRevision(plumbing.Revision(t.Name()))
+		if err != nil {
+			return err
+		}
+		if *target != head.Hash() {
+			// doesn't point to HEAD
+			return nil
+		}
+
+		tag := GitTag{
+			Name:   t.Name().Short(),
+			Hash:   t.Hash().String(),
+			Target: target.String(),
+		}
+
+		if tag.Target != tag.Hash {
+			// annotated tags have own object hash, while has of a leightweight tag is the same as target
+			tagObject, err := c.cache.repo.TagObject(t.Hash())
+			if err != nil {
+				return err
+			}
+			if tagObject.PGPSignature != "" {
+				tag.Signature = &Signature{
+					PGP:       []byte(tagObject.PGPSignature),
+					Validated: false,
+				}
+			}
+		}
+
+		ref.Tags = append(ref.Tags, tag)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	remotes, err := c.cache.repo.Remotes()
@@ -186,17 +287,8 @@ func (c *PathChecker) MakeSummary() (types.PathCheckSummary, error) {
 		git.Remotes[remoteConfig.Name] = remoteConfig.URLs
 	}
 
-	head, err := c.cache.repo.Head()
-	if err != nil {
-		return nil, err
-	}
-
-	git.Reference = GitReference{
-		Name:   head.Name().String(),
-		Hash:   head.Hash().String(),
-		Type:   head.Type().String(),
-		Target: head.Target().String(),
-	}
+	git.Reference = ref
+	git.Object = *obj
 
 	return summary, nil
 }
