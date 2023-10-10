@@ -354,7 +354,7 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 			return "", fmt.Errorf("adding alias tagging failed: %w", err)
 		}
 	}
-
+	// TODO: reteurn tag and all of its aliases
 	return tagAliases[0].String() + "@" + digest.String(), err
 }
 
@@ -372,22 +372,22 @@ func SemVerTagsFromAttestations(ctx context.Context, tag name.Tag, sourceAttesta
 	if len(entries.EntryGroups[0]) == 0 {
 		return []name.Tag{}
 	}
-	groupSummary, ok := entries.EntryGroups[0][0].Full().(*git.GitSummary)
+
+	// TODO: try to use generics for this?
+	groupSummary, ok := entries.EntryGroups[0][0].Full().(*git.Summary)
 	if !ok {
 		return []name.Tag{}
 	}
-	if len(groupSummary.Reference.Tags) == 0 {
+	ref := groupSummary.Git.Reference
+	if len(ref.Tags) == 0 {
 		return []name.Tag{}
 	}
-
-	tags := make([]name.Tag, 0, len(groupSummary.Reference.Tags))
-
 	// TODO: detect tags with groupSummary.Path+"/" as prefix and priorities them
-	for i := range groupSummary.Reference.Tags {
-		t := groupSummary.Reference.Tags[i].Name
-		fmt.Println(t)
-		if semver.IsValid(t) {
-			tags = append(tags, tag.Context().Tag(t))
+	tags := make([]name.Tag, 0, len(ref.Tags))
+	for i := range ref.Tags {
+		t := ref.Tags[i].Name
+		if semver.IsValid(t) || semver.IsValid("v"+t) {
+			tags = append(tags, tag.Context().Tag(ref.Tags[i].Name))
 		}
 	}
 	if len(tags) == 0 {
