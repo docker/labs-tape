@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"golang.org/x/mod/semver"
+
 	ociclient "github.com/fluxcd/pkg/oci"
 	"github.com/go-git/go-git/v5/utils/ioutil"
 	"github.com/google/go-containerregistry/pkg/compression"
@@ -25,6 +27,7 @@ import (
 
 	"github.com/docker/labs-brown-tape/attest/manifest"
 	attestTypes "github.com/docker/labs-brown-tape/attest/types"
+	"github.com/docker/labs-brown-tape/attest/vcs/git"
 	manifestTypes "github.com/docker/labs-brown-tape/manifest/types"
 )
 
@@ -224,10 +227,6 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	}
 	defer os.RemoveAll(tmpDir)
 
-	_, err = SemVerFromAttestations(ctx, sourceAttestations...)
-	if err != nil {
-		return "", err
-	}
 	tmpFile := filepath.Join(tmpDir, "artefact.tgz")
 
 	outputFile, err := os.OpenFile(tmpFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, regularFileMode)
@@ -255,7 +254,11 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 	}
 	hash := hex.EncodeToString(c.hash.Sum(nil))
 	tag := repo.Tag(manifestTypes.ConfigImageTagPrefix + hash)
-	tagAlias := tag.Context().Tag(manifestTypes.ConfigImageTagPrefix + hash[:7])
+
+	tagAliases := append(
+		SemVerTagsFromAttestations(ctx, tag, sourceAttestations...),
+		tag.Context().Tag(manifestTypes.ConfigImageTagPrefix+hash[:7]),
+	)
 
 	if timestamp == nil {
 		timestamp = new(time.Time)
@@ -346,25 +349,51 @@ func (c *Client) PushArtefact(ctx context.Context, destinationRef, sourceDir str
 		return "", fmt.Errorf("pushing index failed: %w", err)
 	}
 
-	if err := remote.Tag(tagAlias, index, c.remoteWithContext(ctx)...); err != nil {
-		return "", fmt.Errorf("adding alias tagging failed: %w", err)
+	for i := range tagAliases {
+		if err := remote.Tag(tagAliases[i], index, c.remoteWithContext(ctx)...); err != nil {
+			return "", fmt.Errorf("adding alias tagging failed: %w", err)
+		}
 	}
 
-	return tagAlias.String() + "@" + digest.String(), err
+	return tagAliases[0].String() + "@" + digest.String(), err
 }
 
-func SemVerFromAttestations(ctx context.Context, sourceAttestations ...attestTypes.Statement) (string, error) {
+func SemVerTagsFromAttestations(ctx context.Context, tag name.Tag, sourceAttestations ...attestTypes.Statement) []name.Tag {
 	statements := attestTypes.FilterByPredicateType(manifest.ManifestDirPredicateType, sourceAttestations)
-	if len(statements) == 0 {
-		return "", fmt.Errorf("VCS provinance attestion (%q) not found", manifest.ManifestDirPredicateType)
-	}
-	if len(statements) > 1 {
-		return "", fmt.Errorf("too many attestations of type %q found, expected 1", manifest.ManifestDirPredicateType)
+	if len(statements) != 1 {
+		return []name.Tag{}
 	}
 
-	_ = manifest.MakeDirContentsStatementFrom(statements[0])
+	entries := manifest.MakeDirContentsStatementFrom(statements[0]).GetUnderlyingPredicate().VCSEntries
+	if len(entries.EntryGroups) != 1 && len(entries.Providers) != 1 ||
+		entries.Providers[0] != git.ProviderName {
+		return []name.Tag{}
+	}
+	if len(entries.EntryGroups[0]) == 0 {
+		return []name.Tag{}
+	}
+	groupSummary, ok := entries.EntryGroups[0][0].Full().(*git.GitSummary)
+	if !ok {
+		return []name.Tag{}
+	}
+	if len(groupSummary.Reference.Tags) == 0 {
+		return []name.Tag{}
+	}
 
-	return "", nil
+	tags := make([]name.Tag, 0, len(groupSummary.Reference.Tags))
+
+	// TODO: detect tags with groupSummary.Path+"/" as prefix and priorities them
+	for i := range groupSummary.Reference.Tags {
+		t := groupSummary.Reference.Tags[i].Name
+		fmt.Println(t)
+		if semver.IsValid(t) {
+			tags = append(tags, tag.Context().Tag(t))
+		}
+	}
+	if len(tags) == 0 {
+		return []name.Tag{}
+	}
+	return tags
 }
 
 func makeDescriptorWithPlatform() Descriptor {
