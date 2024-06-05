@@ -1,5 +1,10 @@
 # Tape is for packaging applications
 
+## Disclaimer
+
+This project is an archived experiment that was done as part of Docker Labs and is no longer worked on.
+It's been made available by Docker Labs team under the Apache license as it's deemed of potential interest to the community, however, it's no longer in active development.
+
 ## What is Tape?
 
 Tape is a tool that can package an entire application as a self-contained (taped) OCI image that can be deployed to a
@@ -37,7 +42,7 @@ provide a logical supply chain entry point and location for storing metadata.
 
 The best analogy is flatpack furniture. Presently, deployment of an application is as if flatpack hasn't been invented, so
 when someone orders a wooden cabinet, all that arrives in a box is just the pieces of wood, they have to shop for nuts,
-bolts, and tools. Of course, that might be desirable for some, as they have a well stocked workshop with the best tools and
+bolts, and tools. Of course, that might be desirable for some, as they have a well-stocked workshop with the best tools and
 a decent selection of nuts and bolts. But did the box even include assembly instructions with the list of nuts and bolts
 one has to buy?
 That model doesn't scale to the consumer market. Of course, some consumers might have a toolbox, but very few will be able
@@ -53,10 +58,6 @@ source. The attestations are attached to the resulting OCI image, so it helps wi
 
 ## How does Tape work?
 
-> NB: This describes the current implementation that is very minimal and doesn't achieve all of the ambitious goals
-> as described above. Namely it works only with plain YAML and JSON manifests and doesn't yet have key integrations,
-> e.g. with Helm or other tools.
-
 Tape can parse a directory with Kubernetes configuration and find all canonical references to application images.
 If an image reference contains a digest, Tape will use it, otherwise it resolves it by making a registry API call.
 For each of the images, Tape searches of all well-known related tags, such as external signatures, attestations and
@@ -68,7 +69,7 @@ Copying of all application images and referencing by digest is performed to ensu
 are tightly coupled together to provide a single link in the supply chain as well as a single point of distribution
 and access control for the whole application.
 
-Tape also checks the VCS provenance of manifests, so if any manifest files are checked in to Git, Tape will attest to what
+Tape also checks the VCS provenance of manifests, so if any manifest files are checked in Git, Tape will attest to what
 Git repository each file came from, all of the revision metadata, and whether it's been modified or not.
 Additionally, Tape attests to all key steps that it performs, e.g. original image references it detects and manifest
 checksums. It stores the attestations using in-toto format in an OCI artifact.
@@ -78,8 +79,8 @@ checksums. It stores the attestations using in-toto format in an OCI artifact.
 Tape has the following commands:
 
 - `tape images` - examine images referenced by a given set of manifests before packaging them
-- `tape package` - package an artifcat and push it to a registry
-- `tape pull` – downlowad and extract contents and attestations from an existing artifact
+- `tape package` - package an artifact and push it to a registry
+- `tape pull` – download and extract contents and attestations from an existing artifact
 - `tape view` – inspect an existing artifact
 
 ### Example
@@ -430,14 +431,13 @@ $ crane blob ${podinfo_image}@${tape_attest_digest} | gunzip | jq .
 $
 ```
 
-## Roadmap & FAQ
+## FAQ
 
 ### What configuration formats does Tape support, does it support any kind of templating?
 
-Presently, it supports plain JSON and YAML manifest. In the future, the goal is to accommodate a variety of popular
-templating options, e.g. CUE, Helm, and scripting languages, so that environment-specific parameters can be specified.
-It may also support basic runtime overrides with or without templating e.g. for namespaces and labels.
-It should also offer flexibility around templating at buildtime, runtime, or done partially buildtime/runtime.
+Tape supports plain JSON and YAML manifest, which was the scope of the original experiment.
+If the project was to continue, it could accommodate a variety of popular templating options,
+e.g. CUE, Helm, and scripting languages, paving a way for a universal artifact format.
 
 ### How does Tape relate to existing tools?
 
@@ -451,20 +451,20 @@ support OCI artifacts and there could be different ways of building the artifact
 
 ### What kind of applications can Tape package?
 
-Tape doesn't infer an opinion of how the application is structured, what it consists of or doesn't consist of. It doesn't
+Tape doesn't infer an opinion of how the application is structured, or what it consists of or doesn't consist of. It doesn't
 present any application definition format, it operates on plain Kubernetes manifests found in a directory.
 
 ### Does Tape provide SBOMs?
 
-It doesn't create new SBOMs at the moment, but it may cater to this use case in the future.
+Tape doesn't explicitly generate or process SBOMs, but fundamentally it could provide functionality around that.
 
 ## Acknowledgments & Prior Art
 
 What Tape does is very much in the spirit of Docker images, but it extends the idea by shifting the perspective to configuration
 as an entry point to a map of dependencies, as opposed to the forced separation of app images and configuration.
 
-It's not a novelty to package configuration in OCI, there exist many examples of this practice, but there is no interoperability.
-Tape's ambition is to commoditise the model and abstract configuration tooling so that end-users don't need to think about whether
+It's not a novelty to package configuration in OCI, there are many examples of this, yet that in itself doesn't provide for interoperability.
+One could imagine something like Tape as a model that abstracts configuration tooling so that end-users don't need to think about whether
 a particular app needs to be deployed with Helm, Kustomize, or something else.
 
 Tape was directly inspired by [flux push artifact](https://fluxcd.io/flux/cheatsheets/oci-artifacts/). Incidentally, it also resembles
