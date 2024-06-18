@@ -3,8 +3,8 @@ package manifest
 import (
 	"cmp"
 
-	attestTypes "github.com/docker/labs-brown-tape/attest/types"
-	manifestTypes "github.com/docker/labs-brown-tape/manifest/types"
+	attestTypes "github.com/errordeveloper/tape/attest/types"
+	manifestTypes "github.com/errordeveloper/tape/manifest/types"
 )
 
 const (

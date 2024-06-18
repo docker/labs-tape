@@ -3,7 +3,7 @@ package types
 import (
 	kustomize "sigs.k8s.io/kustomize/api/types"
 
-	"github.com/docker/labs-brown-tape/manifest/image"
+	"github.com/errordeveloper/tape/manifest/image"
 )
 
 const (

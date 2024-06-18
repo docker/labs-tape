@@ -15,11 +15,11 @@ import (
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 
-	"github.com/docker/labs-brown-tape/manifest/imageresolver"
-	"github.com/docker/labs-brown-tape/manifest/imagescanner"
-	"github.com/docker/labs-brown-tape/manifest/loader"
-	"github.com/docker/labs-brown-tape/manifest/types"
-	"github.com/docker/labs-brown-tape/oci"
+	"github.com/errordeveloper/tape/manifest/imageresolver"
+	"github.com/errordeveloper/tape/manifest/imagescanner"
+	"github.com/errordeveloper/tape/manifest/loader"
+	"github.com/errordeveloper/tape/manifest/types"
+	"github.com/errordeveloper/tape/oci"
 )
 
 type TapeImagesCommand struct {

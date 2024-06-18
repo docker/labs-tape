@@ -8,15 +8,15 @@ import (
 	"github.com/google/go-containerregistry/pkg/crane"
 	. "github.com/onsi/gomega"
 
-	"github.com/docker/labs-brown-tape/manifest/imagecopier"
-	"github.com/docker/labs-brown-tape/manifest/imageresolver"
-	"github.com/docker/labs-brown-tape/manifest/imagescanner"
-	"github.com/docker/labs-brown-tape/manifest/loader"
-	"github.com/docker/labs-brown-tape/manifest/testdata"
-	"github.com/docker/labs-brown-tape/manifest/types"
-	. "github.com/docker/labs-brown-tape/manifest/updater"
-	"github.com/docker/labs-brown-tape/oci"
-	"github.com/docker/labs-brown-tape/trex"
+	"github.com/errordeveloper/tape/manifest/imagecopier"
+	"github.com/errordeveloper/tape/manifest/imageresolver"
+	"github.com/errordeveloper/tape/manifest/imagescanner"
+	"github.com/errordeveloper/tape/manifest/loader"
+	"github.com/errordeveloper/tape/manifest/testdata"
+	"github.com/errordeveloper/tape/manifest/types"
+	. "github.com/errordeveloper/tape/manifest/updater"
+	"github.com/errordeveloper/tape/oci"
+	"github.com/errordeveloper/tape/trex"
 )
 
 var (

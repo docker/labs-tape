@@ -11,7 +11,7 @@ import (
 
 	toto "github.com/in-toto/in-toto-golang/in_toto"
 
-	"github.com/docker/labs-brown-tape/attest/digest"
+	"github.com/errordeveloper/tape/attest/digest"
 )
 
 type (

@@ -1,4 +1,4 @@
-module github.com/docker/labs-brown-tape
+module github.com/errordeveloper/tape
 
 go 1.21
 

@@ -11,10 +11,10 @@ import (
 
 	toto "github.com/in-toto/in-toto-golang/in_toto"
 
-	"github.com/docker/labs-brown-tape/attest/manifest"
-	attestTypes "github.com/docker/labs-brown-tape/attest/types"
+	"github.com/errordeveloper/tape/attest/manifest"
+	attestTypes "github.com/errordeveloper/tape/attest/types"
 
-	"github.com/docker/labs-brown-tape/oci"
+	"github.com/errordeveloper/tape/oci"
 )
 
 type TapeViewCommand struct {

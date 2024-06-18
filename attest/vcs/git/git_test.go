@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 
-	. "github.com/docker/labs-brown-tape/attest/vcs/git"
+	. "github.com/errordeveloper/tape/attest/vcs/git"
 )
 
 type gitTestCases struct {

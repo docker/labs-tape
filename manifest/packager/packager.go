@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	attestTypes "github.com/docker/labs-brown-tape/attest/types"
-	"github.com/docker/labs-brown-tape/oci"
+	attestTypes "github.com/errordeveloper/tape/attest/types"
+	"github.com/errordeveloper/tape/oci"
 )
 
 type Packager interface {

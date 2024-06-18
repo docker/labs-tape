@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/labs-brown-tape/manifest/types"
+	"github.com/errordeveloper/tape/manifest/types"
 )
 
 type TestCase struct {

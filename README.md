@@ -88,7 +88,7 @@ Tape has the following commands:
 First, clone the repo and build `tape` binary:
 
 ```console
-git clone -q git@github.com:docker/labs-brown-tape.git ; cd ./labs-brown-tape
+git clone -q git@github.com:errordeveloper/tape.git ; cd ./labs-brown-tape
 (cd ./tape ; go build)
 ```
 

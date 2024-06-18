@@ -10,10 +10,10 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 
-	"github.com/docker/labs-brown-tape/attest/digest"
-	attestTypes "github.com/docker/labs-brown-tape/attest/types"
-	"github.com/docker/labs-brown-tape/manifest/types"
-	manifestTypes "github.com/docker/labs-brown-tape/manifest/types"
+	"github.com/errordeveloper/tape/attest/digest"
+	attestTypes "github.com/errordeveloper/tape/attest/types"
+	"github.com/errordeveloper/tape/manifest/types"
+	manifestTypes "github.com/errordeveloper/tape/manifest/types"
 )
 
 type Updater interface {

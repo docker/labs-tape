@@ -13,8 +13,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/utils/ioutil"
 
-	"github.com/docker/labs-brown-tape/attest/digest"
-	"github.com/docker/labs-brown-tape/attest/types"
+	"github.com/errordeveloper/tape/attest/digest"
+	"github.com/errordeveloper/tape/attest/types"
 )
 
 const (

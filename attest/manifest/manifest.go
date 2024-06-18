@@ -3,7 +3,7 @@ package manifest
 import (
 	"cmp"
 
-	"github.com/docker/labs-brown-tape/attest/types"
+	"github.com/errordeveloper/tape/attest/types"
 )
 
 const (

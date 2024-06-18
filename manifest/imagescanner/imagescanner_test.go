@@ -5,9 +5,9 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	. "github.com/docker/labs-brown-tape/manifest/imagescanner"
-	"github.com/docker/labs-brown-tape/manifest/loader"
-	"github.com/docker/labs-brown-tape/manifest/testdata"
+	. "github.com/errordeveloper/tape/manifest/imagescanner"
+	"github.com/errordeveloper/tape/manifest/loader"
+	"github.com/errordeveloper/tape/manifest/testdata"
 )
 
 func TestImageScanner(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	. "github.com/docker/labs-brown-tape/manifest/loader"
-	"github.com/docker/labs-brown-tape/manifest/testdata"
+	. "github.com/errordeveloper/tape/manifest/loader"
+	"github.com/errordeveloper/tape/manifest/testdata"
 )
 
 func TestLoader(t *testing.T) {

@@ -3,7 +3,7 @@ package image
 import (
 	kustomize "sigs.k8s.io/kustomize/api/types"
 
-	"github.com/docker/labs-brown-tape/attest/digest"
+	"github.com/errordeveloper/tape/attest/digest"
 )
 
 type (

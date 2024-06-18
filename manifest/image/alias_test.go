@@ -6,7 +6,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	. "github.com/docker/labs-brown-tape/manifest/image"
+	. "github.com/errordeveloper/tape/manifest/image"
 )
 
 func TestMakeAliasesForNames(t *testing.T) {

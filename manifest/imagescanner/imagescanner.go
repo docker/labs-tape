@@ -11,9 +11,9 @@ import (
 	kimage "sigs.k8s.io/kustomize/api/image"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 
-	"github.com/docker/labs-brown-tape/attest"
-	"github.com/docker/labs-brown-tape/attest/digest"
-	"github.com/docker/labs-brown-tape/manifest/types"
+	"github.com/errordeveloper/tape/attest"
+	"github.com/errordeveloper/tape/attest/digest"
+	"github.com/errordeveloper/tape/manifest/types"
 )
 
 type ImageScanner interface {

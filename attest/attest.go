@@ -3,9 +3,9 @@ package attest
 import (
 	"fmt"
 
-	"github.com/docker/labs-brown-tape/attest/digest"
-	"github.com/docker/labs-brown-tape/attest/types"
-	"github.com/docker/labs-brown-tape/attest/vcs/git"
+	"github.com/errordeveloper/tape/attest/digest"
+	"github.com/errordeveloper/tape/attest/types"
+	"github.com/errordeveloper/tape/attest/vcs/git"
 )
 
 var (

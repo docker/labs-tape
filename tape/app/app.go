@@ -8,7 +8,7 @@ import (
 
 	flags "github.com/thought-machine/go-flags"
 
-	"github.com/docker/labs-brown-tape/logger"
+	"github.com/errordeveloper/tape/logger"
 )
 
 type OutputFormat string

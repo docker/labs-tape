@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/labs-brown-tape/oci"
+	"github.com/errordeveloper/tape/oci"
 	"github.com/fluxcd/pkg/tar"
 )
 

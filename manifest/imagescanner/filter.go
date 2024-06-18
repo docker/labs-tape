@@ -7,8 +7,8 @@ import (
 	"sigs.k8s.io/kustomize/api/filters/filtersutil"
 	"sigs.k8s.io/kustomize/api/filters/fsslice"
 
-	"github.com/docker/labs-brown-tape/attest/digest"
-	"github.com/docker/labs-brown-tape/manifest/types"
+	"github.com/errordeveloper/tape/attest/digest"
+	"github.com/errordeveloper/tape/manifest/types"
 )
 
 type Filter struct {

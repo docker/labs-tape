@@ -6,8 +6,8 @@ import (
 
 	kimage "sigs.k8s.io/kustomize/api/image"
 
-	"github.com/docker/labs-brown-tape/manifest/types"
-	"github.com/docker/labs-brown-tape/oci"
+	"github.com/errordeveloper/tape/manifest/types"
+	"github.com/errordeveloper/tape/oci"
 )
 
 type (

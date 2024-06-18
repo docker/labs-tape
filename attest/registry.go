@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/docker/labs-brown-tape/attest/digest"
-	"github.com/docker/labs-brown-tape/attest/manifest"
-	"github.com/docker/labs-brown-tape/attest/types"
+	"github.com/errordeveloper/tape/attest/digest"
+	"github.com/errordeveloper/tape/attest/manifest"
+	"github.com/errordeveloper/tape/attest/types"
 	"github.com/fxamacker/cbor/v2"
 )
 

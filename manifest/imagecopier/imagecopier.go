@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"hash"
 
-	"github.com/docker/labs-brown-tape/manifest/types"
-	"github.com/docker/labs-brown-tape/oci"
+	"github.com/errordeveloper/tape/manifest/types"
+	"github.com/errordeveloper/tape/oci"
 )
 
 type ImageCopier interface {
